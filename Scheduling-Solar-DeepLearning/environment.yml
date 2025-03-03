@@ -1,0 +1,6 @@
+name: solar-deep-learning
+dependencies:
+  - python=3.9
+  - pytorch
+  - pandas
+  - openpyxl
