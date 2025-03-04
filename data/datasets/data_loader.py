@@ -47,7 +47,7 @@ def load_data():
         df["Total Direct Time for Project for Hourly Employees (Including Drive Time)"] = df["Total Direct Time for Project for Hourly Employees (Including Drive Time)"].apply(time_to_minutes)
 
     # 选择模型所需的特征
-    features = ["Drive Time", "Panel QTY", "System Rating (kW DC)", "# of Stories"]
+    features = [col for col in df.columns if col != target]  # 选择除目标列以外的所有列
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
 
     # 去除包含 NaN 的行
