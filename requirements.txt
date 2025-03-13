@@ -1,4 +1,6 @@
 torch
+torchvision
 pandas
-openpyxl
 numpy
+scikit-learn
+openpyxl

@@ -2,7 +2,8 @@ import pandas as pd
 import os
 import torch
 import re
-from sklearn.preprocessing import LabelEncoder
+import joblib  # 用于保存和加载标准化模型
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder  # ✅ 确保导入 StandardScaler
 
 def convert_time_to_minutes(time_str):
     """ 将时间字符串转换为分钟数 """
@@ -31,6 +32,11 @@ def load_data():
     if "Drive Time" in df.columns:
         df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
 
+    # **将 timedelta64 转换为 float64（单位：分钟）**
+    for col in df.select_dtypes(include=['timedelta64']).columns:
+        df[col] = df[col].dt.total_seconds() / 60  # ✅ 转换为分钟
+        print(f"✅ 转换列 {col} 为 float64（分钟）")
+
     # 处理 Yes/No 列：转换为 1/0
     boolean_cols = [col for col in df.columns if df[col].dropna().astype(str).apply(lambda x: x.lower() in ["yes", "no"]).all()]
     for col in boolean_cols:
@@ -44,39 +50,40 @@ def load_data():
     categorical_cols = [col for col in categorical_cols if col not in boolean_cols + [target]]  # 排除布尔列和目标列
 
     # **使用 Label Encoding**
-    label_encoders = {}
     for col in categorical_cols:
-        le = LabelEncoder()
         df[col] = df[col].astype(str)  # 确保都是字符串
-        df[col] = le.fit_transform(df[col])
-        label_encoders[col] = le  # 保存编码器，方便以后解码
+        df[col] = df[col].factorize()[0] + 1  # 类别从 1 开始
 
     # 确保目标列是数值型
     df[target] = pd.to_numeric(df[target], errors="coerce")
-
-    # 删除 NaN 行
-    df = df.dropna(subset=[target])
+    df = df.dropna(subset=[target])  # 删除 y 为空的行
 
     # 重新获取所有特征列
-    features = [col for col in df.columns if col != target]
+    features = [col for col in df.columns if col != target and col != "Project ID"]
 
-    # **确保所有列都是 float 类型**
-    df[features] = df[features].apply(pd.to_numeric, errors="coerce")  
-    df = df.fillna(0)  # 填充 NaN 值，避免 PyTorch 报错
+   # **标准化 X（输入特征）**
+    X_scaler = StandardScaler()
+    df[features] = df[features].fillna(0)  # ✅ 填充 NaN 为 0
+    df[features] = X_scaler.fit_transform(df[features])
 
-    print(f"✅ Selected features: {features}")
+    # **归一化 y（目标变量）**
+    y_scaler = MinMaxScaler()
+    y = df[[target]].values
+    y = pd.DataFrame(y).fillna(0).values  # ✅ 填充 NaN 为 0
+    y = y_scaler.fit_transform(y)
+
+    # **保存 scaler 以便之后使用**
+    joblib.dump(X_scaler, "checkpoints/X_scaler.pkl")
+    joblib.dump(y_scaler, "checkpoints/y_scaler.pkl")
 
     # **转换为 PyTorch 张量**
-    try:
-        X = torch.tensor(df[features].values, dtype=torch.float32)
-        y = torch.tensor(df[target].values, dtype=torch.float32).view(-1, 1)
-    except Exception as e:
-        print("❌ PyTorch Tensor 转换失败！检查数据是否仍包含非数值项。")
-        print(e)
-        return None, None
+    X = torch.tensor(df[features].values, dtype=torch.float32)
+    y = torch.tensor(y, dtype=torch.float32).view(-1, 1)
 
+    print(f"✅ Selected features: {features}")
     print(f"✅ Data loaded successfully! X shape: {X.shape}, y shape: {y.shape}")
-    return X, y, label_encoders  # 返回编码器，方便解码
+
+    return X, y, X_scaler, y_scaler  # 返回 scaler 以便反归一化
 
 if __name__ == "__main__":
-    X, y, label_encoders = load_data()
+    X, y, X_scaler, y_scaler = load_data()
