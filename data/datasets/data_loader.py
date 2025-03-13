@@ -5,34 +5,34 @@ import torch
 def time_to_minutes(time_str):
     """ 把时间字符串转换为分钟数 """
     if isinstance(time_str, str):
-        time_str = time_str.lower().strip()  
+        time_str = time_str.lower().strip()
 
-        if "hour" in time_str or "h" in time_str:  
+        if "hour" in time_str or "h" in time_str:
             time_str = time_str.replace("hours", "").replace("hour", "").replace("h", "").strip()
             parts = time_str.replace("mins", "").replace("min", "").replace("m", "").strip().split()
 
-            if len(parts) == 2:  # "1 hour 32 mins" -> ["1", "32"]
-                return int(parts[0]) * 60 + int(parts[1])  
-            return int(parts[0]) * 60  # "1 hour" -> ["1"]
+            if len(parts) == 2:
+                return int(parts[0]) * 60 + int(parts[1])  # e.g. "1 hour 32 mins"
+            return int(parts[0]) * 60  # e.g. "1 hour"
 
-        elif "min" in time_str or "m" in time_str:  
+        elif "min" in time_str or "m" in time_str:
             return int(time_str.replace("mins", "").replace("min", "").replace("m", "").strip())
 
-        elif ":" in time_str:  
+        elif ":" in time_str:
             h, m, *_ = map(int, time_str.split(":"))
             return h * 60 + m
 
-    return None  
+    return None
 
 def load_data():
     """ 读取 Excel 数据并进行预处理 """
     
     # 获取当前文件的路径
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "../raw_data/Data.xlsx")  # 访问 Excel 文件
+    file_path = os.path.join(base_dir, "..", "raw_data", "Data.xlsx")  # 访问 Excel 文件
     
     # 读取 Excel 数据
-    df = pd.read_excel(file_path, engine="openpyxl", skiprows=1)  # 跳过前1行（如果第一行是空的）
+    df = pd.read_excel(file_path, engine="openpyxl", skiprows=1)
 
     # 处理列名
     df.columns = df.iloc[0]  # 设定新列名
@@ -40,15 +40,18 @@ def load_data():
     df.columns = df.columns.str.strip()  # 去掉列名中的空格
     df = df.loc[:, ~df.columns.duplicated()]  # 删除重复列
 
+    # 目标变量
+    target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
+
     # 处理时间格式
     if "Drive Time" in df.columns:
         df["Drive Time"] = df["Drive Time"].apply(time_to_minutes)
-    if "Total Direct Time for Project for Hourly Employees (Including Drive Time)" in df.columns:
-        df["Total Direct Time for Project for Hourly Employees (Including Drive Time)"] = df["Total Direct Time for Project for Hourly Employees (Including Drive Time)"].apply(time_to_minutes)
+    if target in df.columns:
+        df[target] = df[target].apply(time_to_minutes)
 
     # 选择模型所需的特征
-    features = [col for col in df.columns if col != target]  # 选择除目标列以外的所有列
-    target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()  # 只选择数值列
+    features = [col for col in numeric_cols if col != target]  
 
     # 去除包含 NaN 的行
     df = df.dropna(subset=features + [target])
@@ -58,3 +61,8 @@ def load_data():
     y = torch.tensor(df[target].values, dtype=torch.float32).view(-1, 1)
 
     return X, y
+
+if __name__ == "__main__":
+    X, y = load_data()
+    print(f"Features shape: {X.shape}")
+    print(f"Target shape: {y.shape}")
