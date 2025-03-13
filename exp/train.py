@@ -5,6 +5,9 @@ import torch.optim as optim
 import sys
 import os
 import joblib  # 用于保存标准化器
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -17,24 +20,45 @@ X, y, X_scaler, y_scaler = load_data()  # ✅ 现在会返回 scaler
 print(f"🔍 检查 X 是否含 NaN: {torch.isnan(X).sum().item()} 个 NaN")
 print(f"🔍 检查 y 是否含 NaN: {torch.isnan(y).sum().item()} 个 NaN")
 
+# **划分 7:3 训练/验证集**
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
 
-dataset = torch.utils.data.TensorDataset(X, y)
-train_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+# **创建 PyTorch DataLoader**
+train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
+val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
+
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
 
 # 初始化模型
 model = SolarTimeModel(input_dim=X.shape[1])
 
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-8)
+optimizer = optim.Adam(model.parameters(), lr=1e-4)  # ✅ 改为 1e-4，避免训练太慢
 
-# 训练
+# **存储损失值**
+train_losses = []
+val_losses = []
+
 num_epochs = 50
-best_loss = float("inf")
+best_val_loss = float("inf")
 
 os.makedirs("checkpoints", exist_ok=True)  # ✅ 确保模型存储文件夹存在
 
+# **定义验证函数**
+def evaluate(model, val_loader):
+    model.eval()  # 设置为评估模式
+    total_loss = 0
+    with torch.no_grad():
+        for batch_X, batch_y in val_loader:
+            predictions = model(batch_X)
+            loss = criterion(predictions, batch_y)
+            total_loss += loss.item()
+    return total_loss / len(val_loader)  # 返回平均损失
+
 for epoch in range(num_epochs):
+    model.train()
     epoch_loss = 0
     for batch_X, batch_y in train_loader:
         optimizer.zero_grad()
@@ -42,22 +66,61 @@ for epoch in range(num_epochs):
         loss = criterion(predictions, batch_y)
         loss.backward()
         optimizer.step()
-        
         epoch_loss += loss.item()
 
-    epoch_loss /= len(train_loader)  # ✅ 计算平均损失
+    train_loss = epoch_loss / len(train_loader)  # 计算训练集的平均损失
+    val_loss = evaluate(model, val_loader)  # 计算验证集损失
 
-    # 每 10 轮打印损失
-    if epoch % 10 == 0:
-        print(f"Epoch [{epoch}/{num_epochs}], Loss: {epoch_loss:.4f}")
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
 
-    # 如果损失更小，则保存模型
-    if epoch_loss < best_loss:
-        best_loss = epoch_loss
+    print(f"Epoch [{epoch}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+    # 保存最好的模型（最小验证损失）
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
         torch.save(model.state_dict(), "checkpoints/best_model.pth")
 
 # ✅ 训练完成后保存最终模型
 torch.save(model.state_dict(), "checkpoints/final_model.pth")
 joblib.dump(y_scaler, "checkpoints/y_scaler.pkl")  # ✅ 保存 y_scaler 以便预测时反归一化
 
-print("✅ Training Complete! Model saved to 'checkpoints/final_model.pth'")
+
+# **✅ 计算 MSE 和 MPE**
+def evaluate_mse_mpe(model, X, y, y_scaler):
+    model.eval()
+    with torch.no_grad():
+        predictions = model(X)
+
+        # 反归一化 y 和 predictions
+        y = y_scaler.inverse_transform(y.numpy())
+        predictions = y_scaler.inverse_transform(predictions.numpy())
+
+        # 计算 MSE
+        mse = np.mean((predictions - y) ** 2)
+
+        # 计算 MPE，避免除零错误
+        nonzero_mask = y != 0
+        mpe = np.mean(((predictions - y) / y)[nonzero_mask]) * 100  # 百分比误差
+
+    return mse, mpe
+
+mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
+
+print(f"✅ Final Evaluation on Validation Set:")
+print(f"🔹 MSE: {mse:.4f}")
+print(f"🔹 MPE: {mpe:.2f}%")
+
+# **✅ 绘制训练曲线**
+plt.figure(figsize=(8, 6))
+plt.plot(range(num_epochs), train_losses, label="Train Loss", marker="o", linestyle="-")
+plt.plot(range(num_epochs), val_losses, label="Validation Loss", marker="s", linestyle="-")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Training and Validation Loss Over Epochs")
+plt.legend()
+plt.grid()
+plt.savefig("checkpoints/loss_curve.png")  # **保存图表**
+plt.show()
+
+print("✅ Training Complete! Best model saved to 'checkpoints/best_model.pth'")
