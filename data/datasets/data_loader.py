@@ -29,7 +29,7 @@ def load_data():
 
     df = pd.read_excel(file_path, engine="openpyxl")
     df.columns = df.columns.str.strip().str.replace("\n", " ")
-    
+
     if df.empty:
         print("读取的数据为空，请检查数据文件！")
         return None, None, None, None  
@@ -72,6 +72,9 @@ def load_data():
 
     # 确保目标列是数值型
     df[target] = pd.to_numeric(df[target], errors="coerce")
+
+    print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
+
     df = df.dropna(subset=[target])  # 删除 y 为空的行
 
 
