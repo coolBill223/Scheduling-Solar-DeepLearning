@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import torch
 import re
+import datetime
 import joblib  # 用于保存和加载标准化模型
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder  # ✅ 确保导入 StandardScaler
 
@@ -36,15 +37,28 @@ def load_data():
 
     print(f"数据加载成功，形状: {df.shape}")
 
+    
     # 目标变量
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
     df_raw = pd.read_excel(file_path, engine="openpyxl", dtype=str)  # 以字符串格式读取，防止数据丢失
-    print(df_raw[target].head(10))
     
     if target not in df.columns:
         print(f"目标列 {target} 不存在！")
         return None, None, None, None  
 
+    print(f"🔍 目标列 {target} 的唯一值: {df[target].unique()}")
+
+    if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time))).any():
+        print(f"🔍 `{target}` 包含 datetime.time 或 datetime.datetime，转换为分钟数")
+        df[target] = df[target].apply(convert_time_to_minutes)
+
+    # ✅ **确保 `target` 是数值**
+    df[target] = df[target].astype(str).str.replace(",", "").str.strip()  # 去掉逗号和空格
+    df[target] = pd.to_numeric(df[target], errors="coerce")
+
+    print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
+    print(df[target].dtype)
+    print(df[target].head(10))
 
     # 处理 Drive Time
     if "Drive Time" in df.columns:
