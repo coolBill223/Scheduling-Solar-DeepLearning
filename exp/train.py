@@ -43,7 +43,7 @@ scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)  # 每
 # **存储损失值**
 train_losses = []
 val_losses = []
-num_epochs = 130
+num_epochs = 60
 best_val_loss = float("inf")
 
 os.makedirs("checkpoints", exist_ok=True)  # 确保模型存储文件夹存在
@@ -94,9 +94,13 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
     with torch.no_grad():
         predictions = model(X)
 
-        # 反归一化 y 和 predictions
-        y = y_scaler.inverse_transform(y.numpy())
-        predictions = y_scaler.inverse_transform(predictions.numpy())
+        # ✅ 确保 `y` 反归一化
+        y = y.cpu().numpy()
+        predictions = predictions.cpu().numpy()
+
+        # ✅ 反归一化 y 和预测值
+        y = y_scaler.inverse_transform(y)
+        predictions = y_scaler.inverse_transform(predictions)
 
         # 计算 MSE
         mse = np.mean((predictions - y) ** 2)
@@ -106,6 +110,7 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
         mpe = np.mean(((predictions - y) / y)[nonzero_mask]) * 100  # 百分比误差
 
     return mse, mpe
+
 
 mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
 
