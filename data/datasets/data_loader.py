@@ -28,8 +28,6 @@ def load_data():
         return None, None, None, None 
 
     df = pd.read_excel(file_path, engine="openpyxl")
-    df_raw = pd.read_excel(file_path, engine="openpyxl", dtype=str)  # 以字符串格式读取，防止数据丢失
-    print(df_raw[target].head(10))
     df.columns = df.columns.str.strip().str.replace("\n", " ")
 
     if df.empty:
@@ -40,7 +38,9 @@ def load_data():
 
     # 目标变量
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
-
+    df_raw = pd.read_excel(file_path, engine="openpyxl", dtype=str)  # 以字符串格式读取，防止数据丢失
+    print(df_raw[target].head(10))
+    
     if target not in df.columns:
         print(f"目标列 {target} 不存在！")
         return None, None, None, None  
