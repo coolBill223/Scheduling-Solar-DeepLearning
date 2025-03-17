@@ -12,7 +12,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from data.datasets.data_loader import load_data
-from models.solar_time_model import SolarTimeModel
+from models.solar_time_model import TransformerModel
 
 # 载入数据
 X, y, X_scaler, y_scaler = load_data()  # ✅ 现在会返回 scaler
@@ -31,11 +31,11 @@ train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
 
 # 初始化模型
-model = SolarTimeModel(input_dim=X.shape[1])
+model = TransformerModel(input_dim=X.shape[1])
 
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-4)  # ✅ 改为 1e-4，避免训练太慢
+optimizer = optim.Adam(model.parameters(), lr=5e-5)  # 
 
 # **存储损失值**
 train_losses = []
@@ -44,7 +44,7 @@ val_losses = []
 num_epochs = 50
 best_val_loss = float("inf")
 
-os.makedirs("checkpoints", exist_ok=True)  # ✅ 确保模型存储文件夹存在
+os.makedirs("checkpoints", exist_ok=True)  # 确保模型存储文件夹存在
 
 # **定义验证函数**
 def evaluate(model, val_loader):

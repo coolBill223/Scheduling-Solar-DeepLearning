@@ -1,22 +1,26 @@
-# 太阳能安装时间预测模型
+import math
 import torch.nn as nn
+import torch
 
-class SolarTimeModel(nn.Module):
-    def __init__(self, input_dim):
-        super(SolarTimeModel, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 64)
-        self.bn1 = nn.BatchNorm1d(64)  # ✅ BatchNorm
-        self.dropout1 = nn.Dropout(0.3)  # ✅ Dropout
-        self.fc2 = nn.Linear(64, 32)
-        self.bn2 = nn.BatchNorm1d(32)
-        self.dropout2 = nn.Dropout(0.3)
-        self.fc3 = nn.Linear(32, 1)
-        self.relu = nn.ReLU()
+class TransformerModel(nn.Module):
+    def __init__(self, input_dim, num_heads=4, num_layers=2):
+        super(TransformerModel, self).__init__()
+
+        # 计算 d_model，确保它是 num_heads 的整数倍
+        self.num_heads = num_heads
+        self.d_model = math.ceil(input_dim / num_heads) * num_heads  # 让 d_model 可整除 num_heads
+
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=num_heads, batch_first=True)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
+        self.fc = nn.Linear(self.d_model, 1)  # 输出层
 
     def forward(self, x):
-        x = self.relu(self.bn1(self.fc1(x)))
-        x = self.dropout1(x)
-        x = self.relu(self.bn2(self.fc2(x)))
-        x = self.dropout2(x)
-        x = self.fc3(x)
+        # **动态填充 x 使其适配 d_model**
+        if x.shape[-1] != self.d_model:
+            diff = self.d_model - x.shape[-1]
+            padding = torch.zeros((x.shape[0], diff), device=x.device)  # 生成零填充
+            x = torch.cat([x, padding], dim=-1)  # 拼接到原数据上，使其维度符合 d_model
+
+        x = self.transformer_encoder(x)
+        x = self.fc(x)  # 取最后时间步
         return x
