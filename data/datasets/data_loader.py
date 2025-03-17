@@ -6,21 +6,44 @@ import datetime
 import joblib  # 用于保存和加载标准化模型
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder  # ✅ 确保导入 StandardScaler
 
+import re
+
 def convert_time_to_minutes(value):
-    """ 将 datetime.time、datetime.datetime、timedelta64 或时间字符串转换为分钟数 """
-    if isinstance(value, datetime.datetime):  
-        return value.hour * 60 + value.minute
-    elif isinstance(value, datetime.time):  
-        return value.hour * 60 + value.minute
-    elif isinstance(value, pd.Timedelta):  # 处理 `timedelta64` 类型数据
+    """ 将时间数据转换为分钟数 """
+    if pd.isna(value) or value in ["nan", "None", ""]:
+        return None  # 让 fillna() 处理，而不是返回 0
+
+    if isinstance(value, pd.Timedelta):  # 处理 timedelta64
         return value.total_seconds() / 60
-    elif isinstance(value, str):  # 处理字符串格式的时间 "HH:MM:SS"
-        try:
-            h, m, s = map(int, value.split(":"))
+    elif isinstance(value, datetime.datetime) or isinstance(value, datetime.time):  
+        return value.hour * 60 + value.minute
+    elif isinstance(value, str):  # 处理字符串格式的时间
+        value = value.strip().lower()
+
+        # **匹配 HH:MM:SS 或 HH:MM**
+        match = re.match(r"(\d+):(\d+)(?::(\d+))?", value)
+        if match:
+            h, m, s = map(lambda x: int(x) if x else 0, match.groups())
             return h * 60 + m
-        except:
-            return None  # 解析失败返回 None
-    return None  # 不是时间数据则返回 None
+
+        # **匹配 '2h 15m' 这种格式**
+        match = re.match(r"(\d+)\s*h\s*(\d*)\s*m?", value, re.IGNORECASE)
+        if match:
+            h = int(match.group(1))
+            m = int(match.group(2)) if match.group(2) else 0
+            return h * 60 + m
+
+        # **匹配 'XX mins' 格式**
+        match = re.match(r"(\d+)\s*mins?", value)
+        if match:
+            return int(match.group(1))  # 直接返回分钟数
+
+        # **纯数字格式，可能是分钟**
+        if value.isnumeric():
+            return int(value)
+
+    return None  # 解析失败返回 None，让 fillna() 处理
+
 
 
 def load_data():
@@ -71,13 +94,28 @@ def load_data():
     print(df[target].head(10))
 
     # 处理 Drive Time
-    if "Drive Time" in df.columns:
-        df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
+    print(f"🔍 原始 Drive Time 前 10 行:\n{df['Drive Time'].head(10)}")
+    print(f"🔍 原始 Drive Time 的唯一值: {df['Drive Time'].unique()[:20]}")
 
-    # **将 timedelta64 转换为 float64（单位：分钟）**
-    for col in df.select_dtypes(include=['timedelta64']).columns:
-        df[col] = df[col].dt.total_seconds() / 60  # 转换为分钟
-        print(f"转换列 {col} 为 float64（分钟）")
+    if "Drive Time" in df.columns:
+        print(f"🔍 Drive Time 列数据类型: {df['Drive Time'].dtype}")
+
+        # 如果是 timedelta64，直接转换为分钟
+        if pd.api.types.is_timedelta64_dtype(df["Drive Time"]):
+            print("🔍 `Drive Time` 是 timedelta64 类型，转换为分钟数")
+            df["Drive Time"] = df["Drive Time"].dt.total_seconds() / 60
+        else:
+            print("🔍 `Drive Time` 可能是字符串或时间格式，尝试转换")
+            df["Drive Time"] = df["Drive Time"].astype(str).str.strip()  # 先去掉空格
+            df["Drive Time"] = df["Drive Time"].replace(["", "nan", "None"], pd.NA)  # 处理空字符串
+            df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
+
+        # 确保转换成功
+        print(f"🔍 处理后 Drive Time 前 10 行:\n{df['Drive Time'].head(10)}")
+
+    # **填充 NaN 为 0，避免影响后续计算**
+    df["Drive Time"].fillna(0, inplace=True)
+
 
     # 处理 Yes/No 列：转换为 1/0
     boolean_cols = [col for col in df.columns if df[col].dropna().astype(str).apply(lambda x: x.lower() in ["yes", "no"]).all()]
@@ -124,14 +162,17 @@ def load_data():
     print(f"🔍 选定的特征数据:\n{df[features].head()}")
 
    # **标准化 X（输入特征）**
-    X_scaler = StandardScaler()
-    df[features] = df[features].fillna(0)  # ✅ 填充 NaN 为 0
+    # **确保所有特征都是数值型**
+    for col in features:
+        if pd.api.types.is_timedelta64_dtype(df[col]):
+            print(f"🔍 `{col}` 是 timedelta64 类型，转换为分钟数")
+            df[col] = df[col].dt.total_seconds() / 60
 
-    if df[features].shape[0] == 0:
-        print("df[features] 为空，无法标准化！")
-        return None, None, None, None 
-    
+# **标准化 X（输入特征）**
+    X_scaler = StandardScaler()
+    df[features] = df[features].fillna(0)  # 填充 NaN 为 0，避免标准化错误
     df[features] = X_scaler.fit_transform(df[features])
+
 
     # **归一化 y（目标变量）**
     y_scaler = MinMaxScaler()
