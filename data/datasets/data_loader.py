@@ -6,17 +6,22 @@ import datetime
 import joblib  # 用于保存和加载标准化模型
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder  # ✅ 确保导入 StandardScaler
 
-def convert_time_to_minutes(time_str):
-    """ 将时间字符串转换为分钟数 """
-    time_str = str(time_str).strip().lower()
-    
-    # 处理 "1 hour 32 mins" / "45 mins" / "2 hours"
-    match = re.match(r'(?:(\d+)\s*hours?)?\s*(?:(\d+)\s*mins?)?', time_str)
-    if match:
-        hours = int(match.group(1)) if match.group(1) else 0
-        minutes = int(match.group(2)) if match.group(2) else 0
-        return hours * 60 + minutes
-    return None  # 转换失败返回 None（稍后用 fillna 处理）
+def convert_time_to_minutes(value):
+    """ 将 datetime.time、datetime.datetime、timedelta64 或时间字符串转换为分钟数 """
+    if isinstance(value, datetime.datetime):  
+        return value.hour * 60 + value.minute
+    elif isinstance(value, datetime.time):  
+        return value.hour * 60 + value.minute
+    elif isinstance(value, pd.Timedelta):  # 处理 `timedelta64` 类型数据
+        return value.total_seconds() / 60
+    elif isinstance(value, str):  # 处理字符串格式的时间 "HH:MM:SS"
+        try:
+            h, m, s = map(int, value.split(":"))
+            return h * 60 + m
+        except:
+            return None  # 解析失败返回 None
+    return None  # 不是时间数据则返回 None
+
 
 def load_data():
     """ 读取 Excel 数据并进行预处理 """
@@ -40,7 +45,6 @@ def load_data():
     
     # 目标变量
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
-    df_raw = pd.read_excel(file_path, engine="openpyxl", dtype=str)  # 以字符串格式读取，防止数据丢失
     
     if target not in df.columns:
         print(f"目标列 {target} 不存在！")
@@ -48,13 +52,19 @@ def load_data():
 
     print(f"🔍 目标列 {target} 的唯一值: {df[target].unique()}")
 
-    if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time))).any():
-        print(f"🔍 `{target}` 包含 datetime.time 或 datetime.datetime，转换为分钟数")
+    if pd.api.types.is_timedelta64_dtype(df[target]):
+        print(f"🔍 `{target}` 是 timedelta64 类型，转换为分钟数")
+        df[target] = df[target].dt.total_seconds() / 60
+        
+    if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
+        print(f"🔍 `{target}` 包含时间格式数据，转换为分钟数")
         df[target] = df[target].apply(convert_time_to_minutes)
 
     # ✅ **确保 `target` 是数值**
-    df[target] = df[target].astype(str).str.replace(",", "").str.strip()  # 去掉逗号和空格
-    df[target] = pd.to_numeric(df[target], errors="coerce")
+    df[target] = pd.to_numeric(df[target], errors="coerce").astype("float64")
+    
+    if df[target].isnull().sum() > 0:
+        df[target].fillna(df[target].mean(), inplace=True)
 
     print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
     print(df[target].dtype)
