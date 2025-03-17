@@ -89,16 +89,16 @@ def load_data():
     if df[target].isnull().sum() > 0:
         df[target].fillna(df[target].mean(), inplace=True)
 
-    print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
-    print(df[target].dtype)
-    print(df[target].head(10))
+    #print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
+    #print(df[target].dtype)
+    #print(df[target].head(10))
 
     # 处理 Drive Time
-    print(f"🔍 原始 Drive Time 前 10 行:\n{df['Drive Time'].head(10)}")
-    print(f"🔍 原始 Drive Time 的唯一值: {df['Drive Time'].unique()[:20]}")
+    #print(f"🔍 原始 Drive Time 前 10 行:\n{df['Drive Time'].head(10)}")
+    #print(f"🔍 原始 Drive Time 的唯一值: {df['Drive Time'].unique()[:20]}")
 
     if "Drive Time" in df.columns:
-        print(f"🔍 Drive Time 列数据类型: {df['Drive Time'].dtype}")
+        #print(f"🔍 Drive Time 列数据类型: {df['Drive Time'].dtype}")
 
         # 如果是 timedelta64，直接转换为分钟
         if pd.api.types.is_timedelta64_dtype(df["Drive Time"]):

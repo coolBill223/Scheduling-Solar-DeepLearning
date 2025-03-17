@@ -20,11 +20,15 @@ class TransformerModel(nn.Module):
         
         self.dropout = nn.Dropout(dropout_rate)  # 在全连接层前添加 Dropout
         self.fc = nn.Sequential(
-            nn.Linear(self.d_model, 128),
+            nn.Linear(self.d_model, 512),  # ⚡ 增加神经元，提升表达能力
             nn.ReLU(),
-            nn.BatchNorm1d(128),
-            nn.Dropout(dropout_rate),  # Dropout 加强正则化
-            nn.Linear(128, 1)  # 最终输出层
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.BatchNorm1d(256),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1)
         )
 
     def forward(self, x):

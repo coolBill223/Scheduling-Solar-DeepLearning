@@ -27,18 +27,17 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_st
 train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
 val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=False)
 
 # 初始化模型
 model = TransformerModel(input_dim=X.shape[1])
 
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=2e-4) #定义优化
-scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)  # 每轮乘 0.96
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=5e-4)  # L2 正则化
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5, verbose=True)
 
- 
 
 # **存储损失值**
 train_losses = []
@@ -62,6 +61,7 @@ def evaluate(model, val_loader):
 for epoch in range(num_epochs):
     model.train()
     epoch_loss = 0
+
     for batch_X, batch_y in train_loader:
         optimizer.zero_grad()
         predictions = model(batch_X)
@@ -78,10 +78,13 @@ for epoch in range(num_epochs):
 
     print(f"Epoch [{epoch}/{num_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
-    # 保存最好的模型（最小验证损失）
+    # **保存最好的模型**
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         torch.save(model.state_dict(), "checkpoints/best_model.pth")
+
+    # **🚀 这里是关键：让学习率动态调整**
+    scheduler.step(val_loss)  # 🟢 每轮结束后检查 `val_loss`，如果连续 5 轮没有下降，就减少学习率
 
 # 训练完成后保存最终模型
 torch.save(model.state_dict(), "checkpoints/final_model.pth")
@@ -94,13 +97,13 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
     with torch.no_grad():
         predictions = model(X)
 
-        # ✅ 确保 `y` 反归一化
-        y = y.cpu().numpy()
-        predictions = predictions.cpu().numpy()
+        # ✅ 确保 `y` 和 `predictions` 转换为 NumPy 数组
+        y = y.cpu().numpy().reshape(-1, 1)  # ⚠️ 添加 reshape
+        predictions = predictions.cpu().numpy().reshape(-1, 1)  # ⚠️ 添加 reshape
 
-        # ✅ 反归一化 y 和预测值
-        y = y_scaler.inverse_transform(y)
-        predictions = y_scaler.inverse_transform(predictions)
+        # ✅ 反归一化 `y` 和 `predictions`
+        y = y_scaler.inverse_transform(y).flatten()
+        predictions = y_scaler.inverse_transform(predictions).flatten()
 
         # 计算 MSE
         mse = np.mean((predictions - y) ** 2)
@@ -110,6 +113,7 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
         mpe = np.mean(((predictions - y) / y)[nonzero_mask]) * 100  # 百分比误差
 
     return mse, mpe
+
 
 
 mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
