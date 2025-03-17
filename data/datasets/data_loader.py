@@ -28,7 +28,8 @@ def load_data():
         return None, None, None, None 
 
     df = pd.read_excel(file_path, engine="openpyxl")
-
+    df.columns = df.columns.str.strip().str.replace("\n", " ")
+    
     if df.empty:
         print("读取的数据为空，请检查数据文件！")
         return None, None, None, None  
