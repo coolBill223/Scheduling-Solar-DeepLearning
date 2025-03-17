@@ -15,10 +15,10 @@ from data.datasets.data_loader import load_data
 from models.solar_time_model import TransformerModel
 
 # 载入数据
-X, y, X_scaler, y_scaler = load_data()  # ✅ 现在会返回 scaler
+X, y, X_scaler, y_scaler = load_data()  #现在会返回 scaler
 
-print(f"🔍 检查 X 是否含 NaN: {torch.isnan(X).sum().item()} 个 NaN")
-print(f"🔍 检查 y 是否含 NaN: {torch.isnan(y).sum().item()} 个 NaN")
+print(f"检查 X 是否含 NaN: {torch.isnan(X).sum().item()} 个 NaN")
+print(f"检查 y 是否含 NaN: {torch.isnan(y).sum().item()} 个 NaN")
 
 # **划分 7:3 训练/验证集**
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -35,12 +35,14 @@ model = TransformerModel(input_dim=X.shape[1])
 
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=5e-5)  # 
+optimizer = torch.optim.Adam(model.parameters(), lr=2e-4) #定义优化
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95789)  # 每轮乘 0.96
+
+ 
 
 # **存储损失值**
 train_losses = []
 val_losses = []
-
 num_epochs = 50
 best_val_loss = float("inf")
 
@@ -81,12 +83,12 @@ for epoch in range(num_epochs):
         best_val_loss = val_loss
         torch.save(model.state_dict(), "checkpoints/best_model.pth")
 
-# ✅ 训练完成后保存最终模型
+# 训练完成后保存最终模型
 torch.save(model.state_dict(), "checkpoints/final_model.pth")
-joblib.dump(y_scaler, "checkpoints/y_scaler.pkl")  # ✅ 保存 y_scaler 以便预测时反归一化
+joblib.dump(y_scaler, "checkpoints/y_scaler.pkl")  # 保存 y_scaler 以便预测时反归一化
 
 
-# **✅ 计算 MSE 和 MPE**
+# ** 计算 MSE 和 MPE**
 def evaluate_mse_mpe(model, X, y, y_scaler):
     model.eval()
     with torch.no_grad():
@@ -107,11 +109,11 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
 
 mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
 
-print(f"✅ Final Evaluation on Validation Set:")
-print(f"🔹 MSE: {mse:.4f}")
-print(f"🔹 MPE: {mpe:.2f}%")
+print(f"Final Evaluation on Validation Set:")
+print(f"MSE: {mse:.4f}")
+print(f"MPE: {mpe:.2f}%")
 
-# **✅ 绘制训练曲线**
+# **绘制训练曲线**
 plt.figure(figsize=(8, 6))
 plt.plot(range(num_epochs), train_losses, label="Train Loss", marker="o", linestyle="-")
 plt.plot(range(num_epochs), val_losses, label="Validation Loss", marker="s", linestyle="-")
@@ -123,4 +125,4 @@ plt.grid()
 plt.savefig("checkpoints/loss_curve.png")  # **保存图表**
 plt.show()
 
-print("✅ Training Complete! Best model saved to 'checkpoints/best_model.pth'")
+print(" Training Complete! Best model saved to 'checkpoints/best_model.pth'")
