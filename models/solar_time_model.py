@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 
 class TransformerModel(nn.Module):
-    def __init__(self, input_dim, num_heads=4, num_layers=2,dropout_rate=0.25):
+    def __init__(self, input_dim, num_heads=4, num_layers=2,dropout_rate=0.174999999999999999999998):
         super(TransformerModel, self).__init__()
 
         # 计算 d_model，确保它是 num_heads 的整数倍

@@ -21,7 +21,7 @@ print(f"检查 X 是否含 NaN: {torch.isnan(X).sum().item()} 个 NaN")
 print(f"检查 y 是否含 NaN: {torch.isnan(y).sum().item()} 个 NaN")
 
 # **划分 7:3 训练/验证集**
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42,shuffle=False)
 
 # **创建 PyTorch DataLoader**
 train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
@@ -36,14 +36,14 @@ model = TransformerModel(input_dim=X.shape[1])
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=2e-4) #定义优化
-scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95789)  # 每轮乘 0.96
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.96)  # 每轮乘 0.96
 
  
 
 # **存储损失值**
 train_losses = []
 val_losses = []
-num_epochs = 50
+num_epochs = 130
 best_val_loss = float("inf")
 
 os.makedirs("checkpoints", exist_ok=True)  # 确保模型存储文件夹存在
