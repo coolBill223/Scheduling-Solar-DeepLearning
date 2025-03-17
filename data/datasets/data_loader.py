@@ -23,10 +23,25 @@ def load_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, "..", "raw_data", "Data.xlsx")  
 
+    if not os.path.exists(file_path):
+        print(f"文件未找到: {file_path}")
+        return None, None, None, None 
+
     df = pd.read_excel(file_path, engine="openpyxl")
+
+    if df.empty:
+        print("读取的数据为空，请检查数据文件！")
+        return None, None, None, None  
+
+    print(f"数据加载成功，形状: {df.shape}")
 
     # 目标变量
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
+
+    if target not in df.columns:
+        print(f"目标列 {target} 不存在！")
+        return None, None, None, None  
+
 
     # 处理 Drive Time
     if "Drive Time" in df.columns:
@@ -34,8 +49,8 @@ def load_data():
 
     # **将 timedelta64 转换为 float64（单位：分钟）**
     for col in df.select_dtypes(include=['timedelta64']).columns:
-        df[col] = df[col].dt.total_seconds() / 60  # ✅ 转换为分钟
-        print(f"✅ 转换列 {col} 为 float64（分钟）")
+        df[col] = df[col].dt.total_seconds() / 60  # 转换为分钟
+        print(f"转换列 {col} 为 float64（分钟）")
 
     # 处理 Yes/No 列：转换为 1/0
     boolean_cols = [col for col in df.columns if df[col].dropna().astype(str).apply(lambda x: x.lower() in ["yes", "no"]).all()]
@@ -58,12 +73,32 @@ def load_data():
     df[target] = pd.to_numeric(df[target], errors="coerce")
     df = df.dropna(subset=[target])  # 删除 y 为空的行
 
+
+    print(f"📊 数据集列名: {df.columns.tolist()}")
+
+    # **检查空值**
+    print(f"🔍 缺失值情况:\n{df.isnull().sum()}")
+
+
     # 重新获取所有特征列
     features = [col for col in df.columns if col != target and col != "Project ID"]
+    missing_features = [col for col in features if col not in df.columns]
+
+    if missing_features:
+        print(f"❌ 缺失的特征列: {missing_features}")
+        return None, None, None, None  
+
+    # **检查特征列是否为空**
+    print(f"🔍 选定的特征数据:\n{df[features].head()}")
 
    # **标准化 X（输入特征）**
     X_scaler = StandardScaler()
     df[features] = df[features].fillna(0)  # ✅ 填充 NaN 为 0
+
+    if df[features].shape[0] == 0:
+        print("df[features] 为空，无法标准化！")
+        return None, None, None, None 
+    
     df[features] = X_scaler.fit_transform(df[features])
 
     # **归一化 y（目标变量）**
