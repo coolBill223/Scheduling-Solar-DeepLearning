@@ -74,7 +74,6 @@ def load_data():
     df[target] = pd.to_numeric(df[target], errors="coerce")
 
     print(f"🔍 目标列 {target} 为空的行数: {df[target].isnull().sum()}")
-
     df = df.dropna(subset=[target])  # 删除 y 为空的行
 
 
