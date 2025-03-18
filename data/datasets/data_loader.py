@@ -106,7 +106,7 @@ def load_data():
 
     # ✅ **确保 `target` 是数值**
     df[target] = pd.to_numeric(df[target], errors="coerce").astype("float64")
-    df[target] = np.log1p(df[target])  # 应用 log(y+1) 变换
+    df[target] = np.sqrt(df[target])  # 应用 log(y+1) 变换
 
     if df[target].isnull().sum() > 0:
         df[target].fillna(df[target].mean(), inplace=True)
