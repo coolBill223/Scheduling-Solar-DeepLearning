@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 import torch
 import re
@@ -7,6 +8,26 @@ import joblib  # 用于保存和加载标准化模型
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder  # ✅ 确保导入 StandardScaler
 
 import re
+
+import numpy as np
+
+def clean_angle(value):
+    """去掉 ° 符号，并处理斜杠 '/' 取平均值"""
+    if pd.isna(value):
+        return np.nan  # 保持 NaN 值
+    value = str(value).replace("°", "").strip()  # 移除 °
+    
+    if "/" in value:  # 处理 180/200 这种情况
+        try:
+            values = list(map(float, value.split("/")))
+            return sum(values) / len(values)  # 取平均值
+        except:
+            return np.nan  # 解析失败，返回 NaN
+    
+    try:
+        return float(value)  # 转换为数值
+    except:
+        return np.nan  # 解析失败，返回 NaN
 
 def convert_time_to_minutes(value):
     """ 将时间数据转换为分钟数 """
@@ -85,7 +106,8 @@ def load_data():
 
     # ✅ **确保 `target` 是数值**
     df[target] = pd.to_numeric(df[target], errors="coerce").astype("float64")
-    
+    df[target] = np.log1p(df[target])  # 应用 log(y+1) 变换
+
     if df[target].isnull().sum() > 0:
         df[target].fillna(df[target].mean(), inplace=True)
 
@@ -116,7 +138,12 @@ def load_data():
     # **填充 NaN 为 0，避免影响后续计算**
     df["Drive Time"].fillna(0, inplace=True)
 
+    if "Tilt" in df.columns:
+        df["Tilt"] = df["Tilt"].apply(clean_angle)
 
+    if "Azimuth" in df.columns:
+        df["Azimuth"] = df["Azimuth"].apply(clean_angle)
+    
     # 处理 Yes/No 列：转换为 1/0
     boolean_cols = [col for col in df.columns if df[col].dropna().astype(str).apply(lambda x: x.lower() in ["yes", "no"]).all()]
     for col in boolean_cols:
@@ -149,9 +176,15 @@ def load_data():
     # **检查空值**
     print(f"🔍 缺失值情况:\n{df.isnull().sum()}")
 
-
+    exclude_columns = [
+        "Project ID", "Notes", "Total # of Days on Site",
+        "Estimated # of Salaried Employees on Site",
+        "Estimated Salary Hours",
+        "Estimated Total Direct Time",
+        "Estimated Total # of People on Site"
+    ]
     # 重新获取所有特征列
-    features = [col for col in df.columns if col != target and col != "Project ID"]
+    features = [col for col in df.columns if col != target and col not in exclude_columns]
     missing_features = [col for col in features if col not in df.columns]
 
     if missing_features:
@@ -168,6 +201,9 @@ def load_data():
             print(f"🔍 `{col}` 是 timedelta64 类型，转换为分钟数")
             df[col] = df[col].dt.total_seconds() / 60
 
+    pd.set_option("display.max_columns", None)
+    print(f"🔍 前 10 行特征数据:\n{df[features].head(10)}")
+    
 # **标准化 X（输入特征）**
     X_scaler = StandardScaler()
     df[features] = df[features].fillna(0)  # 填充 NaN 为 0，避免标准化错误
@@ -175,7 +211,7 @@ def load_data():
 
 
     # **归一化 y（目标变量）**
-    y_scaler = MinMaxScaler()
+    y_scaler = StandardScaler()
     y = df[[target]].values
     y = pd.DataFrame(y).fillna(0).values  # ✅ 填充 NaN 为 0
     y = y_scaler.fit_transform(y)
@@ -189,6 +225,8 @@ def load_data():
     y = torch.tensor(y, dtype=torch.float32).view(-1, 1)
 
     print(f"✅ Selected features: {features}")
+    # **输出前 10 行数据（所有 features）**
+    print(f"🔍 前 10 行特征数据标准化和归一化后:\n{df[features].head(10)}")
     print(f"✅ Data loaded successfully! X shape: {X.shape}, y shape: {y.shape}")
 
     return X, y, X_scaler, y_scaler  # 返回 scaler 以便反归一化

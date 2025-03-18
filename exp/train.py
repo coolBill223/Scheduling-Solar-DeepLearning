@@ -12,7 +12,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from data.datasets.data_loader import load_data
-from models.solar_time_model import TransformerModel
+from models.solar_time_model import MLPModel
 
 # 载入数据
 X, y, X_scaler, y_scaler = load_data()  #现在会返回 scaler
@@ -27,22 +27,25 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_st
 train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
 val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=128, shuffle=False)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=512, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=512, shuffle=False)
 
 # 初始化模型
-model = TransformerModel(input_dim=X.shape[1])
+model = MLPModel(input_dim=X.shape[1])
 
 # 选择损失函数 & 优化器
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=5e-4)  # L2 正则化
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5, verbose=True)
+optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=1e-3)  # MLP 一般可以用稍大的学习率
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3, verbose=True)
+
+
+
 
 
 # **存储损失值**
 train_losses = []
 val_losses = []
-num_epochs = 60
+num_epochs = 180
 best_val_loss = float("inf")
 
 os.makedirs("checkpoints", exist_ok=True)  # 确保模型存储文件夹存在
@@ -72,7 +75,7 @@ for epoch in range(num_epochs):
 
     train_loss = epoch_loss / len(train_loader)  # 计算训练集的平均损失
     val_loss = evaluate(model, val_loader)  # 计算验证集损失
-
+    
     train_losses.append(train_loss)
     val_losses.append(val_loss)
 
@@ -82,6 +85,9 @@ for epoch in range(num_epochs):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         torch.save(model.state_dict(), "checkpoints/best_model.pth")
+        no_improve_count = 0
+    else:
+        no_improve_count += 1
 
     # **🚀 这里是关键：让学习率动态调整**
     scheduler.step(val_loss)  # 🟢 每轮结束后检查 `val_loss`，如果连续 5 轮没有下降，就减少学习率
@@ -102,8 +108,9 @@ def evaluate_mse_mpe(model, X, y, y_scaler):
         predictions = predictions.cpu().numpy().reshape(-1, 1)  # ⚠️ 添加 reshape
 
         # ✅ 反归一化 `y` 和 `predictions`
-        y = y_scaler.inverse_transform(y).flatten()
-        predictions = y_scaler.inverse_transform(predictions).flatten()
+        y = np.expm1(y_scaler.inverse_transform(y).flatten())  # 还原原始 y
+        predictions = np.expm1(y_scaler.inverse_transform(predictions).flatten())  # 还原预测值
+
 
         # 计算 MSE
         mse = np.mean((predictions - y) ** 2)
