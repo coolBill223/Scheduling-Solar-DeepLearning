@@ -173,47 +173,32 @@ def load_data():
         #print(f"Target {target} doesn't exist！")
         return None, None, None, None  
 
-    #print(f"Target {target}'s unique values: {df[target].unique()}")
-
+    # Convert target column to minutes if needed
     if pd.api.types.is_timedelta64_dtype(df[target]):
-        #print(f"`{target}` is timedelta64 type, convert to minutes")
         df[target] = df[target].dt.total_seconds() / 60
-        
-    if df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
-        #print(f"`{target}` includes datetime, time, str or timedelta, convert to minutes")
+    elif df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
         df[target] = df[target].apply(convert_dhm_to_minutes_strict)
 
-    # **make sure target is numeric to train**
-    df[target] = pd.to_numeric(df[target], errors="coerce").astype("float64")
-    df[target] = np.sqrt(df[target])  # apply  log(y+1) transforme to avoid negative values
+    df[target] = pd.to_numeric(df[target], errors="coerce")
 
-    if df[target].isnull().sum() > 0:
-        df[target] = df[target].fillna(df[target].mean())
-
-    #print(f"Target{target} is null: {df[target].isnull().sum()}")
-    #print(df[target].dtype)
-    #print(df[target].head(10))
-
-    # change Drive Time
-    #print(f"Original Drive Time first 10 rows:\n{df['Drive Time'].head(10)}")
-    #print(f"Original Drive Time unique values: {df['Drive Time'].unique()[:20]}")
-
+    # Process Drive Time
     if "Drive Time" in df.columns:
-
-        # If it is timedelta64，change it into minutes
         if pd.api.types.is_timedelta64_dtype(df["Drive Time"]):
-            #print("`Drive Time` is timedelta64 type, need to convert to minutes")
             df["Drive Time"] = df["Drive Time"].dt.total_seconds() / 60
         else:
-            df["Drive Time"] = df["Drive Time"].astype(str).str.strip()  # delete the space
-            df["Drive Time"] = df["Drive Time"].replace(["", "nan", "None"], pd.NA)  # deal with the string
+            df["Drive Time"] = df["Drive Time"].astype(str).str.strip()
+            df["Drive Time"] = df["Drive Time"].replace(["", "nan", "None"], pd.NA)
             df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
+        df["Drive Time"] = pd.to_numeric(df["Drive Time"], errors="coerce").fillna(0)
 
-        # make sure Drive Time is in minutes
-        #print(f"Drive Time first 10 rows after conversion:\n{df['Drive Time'].head(10)}")
+    # Subtract drive time BEFORE applying sqrt
+    df[target] = df[target] - df["Drive Time"]
+    df[target] = df[target].clip(lower=0)      # ensure no negatives
+    df[target] = np.sqrt(df[target])           # apply sqrt after subtracting drive time
 
-    # **fill nan with 0**
-    df["Drive Time"] = df["Drive Time"].fillna(0)
+    # Fill any remaining NaNs
+    df[target] = df[target].fillna(df[target].mean())
+
 
     if "Tilt" in df.columns:
         df["Tilt"] = df["Tilt"].apply(clean_angle)
@@ -256,7 +241,7 @@ def load_data():
         "Estimated # of Salaried Employees on Site",
         "Estimated Salary Hours",
         "Estimated Total Direct Time",
-        "Estimated Total # of People on Site"
+        "Estimated Total # of People on Site","Drive Time"
     ]
 
 
