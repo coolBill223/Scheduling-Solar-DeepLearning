@@ -150,6 +150,6 @@ plt.title("Training and Validation Loss Over Epochs")
 plt.legend()
 plt.grid()
 plt.savefig("checkpoints/loss_curve.png")  # **保存图表**
-plt.close()
+plt.show()
 
 print(" Training Complete! Best model saved to 'checkpoints/best_model.pth'")
