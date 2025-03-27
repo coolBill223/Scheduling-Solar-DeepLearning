@@ -13,6 +13,7 @@ class TinyMLP(nn.Module):
         # Layer 1: Input -> Hidden (24 -> 16)
         self.fc1 = nn.Sequential(
             nn.Linear(input_dim, 16),   # Input: (batch_size, 24), Output: (batch_size, 16)
+            nn.LayerNorm(16),
             nn.ReLU(),
             nn.Dropout(0.2)             # Prevent overfitting
         )
