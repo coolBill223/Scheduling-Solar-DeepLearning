@@ -153,11 +153,19 @@ def load_data():
         print(f"File didn't find: {file_path}")
         return None, None, None, None 
 
-    df = pd.read_excel(file_path, engine="openpyxl")
-    # delete the first row and the first column
-    df = pd.read_excel(file_path, engine="openpyxl", skiprows=2)
-    df.drop(df.columns[0], axis=1, inplace=True)
+    preview = pd.read_excel(file_path, engine="openpyxl", nrows=10, header=None)
+    header_row = preview.apply(lambda row: row.notna().sum(), axis=1).idxmax()  # Finding a first row that isn't nan
+    
+    df = pd.read_excel(file_path, engine="openpyxl", header=header_row)
+    
+    # delete the empty row and the first column
+    df.dropna(how="all", inplace=True)
+    df.dropna(axis=1, how="all", inplace=True)
+    
     df.columns = df.columns.str.strip().str.replace("\n", " ")
+
+    unnamed_cols = [col for col in df.columns if col.lower().startswith("unnamed")]
+    df.drop(columns=unnamed_cols, inplace=True)
 
     if df.empty:
         print("The file is empty, please check the file！")
