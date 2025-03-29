@@ -10,23 +10,21 @@ class TinyMLP(nn.Module):
         """
         super(TinyMLP, self).__init__()
 
-        # Layer 1: Input -> Hidden (24 -> 16)
+        # Layer 1: Input -> Hidden (input_dim -> 32)
         self.fc1 = nn.Sequential(
-            nn.Linear(input_dim, 16),   # Input: (batch_size, 24), Output: (batch_size, 16)
-            nn.LayerNorm(16),
+            nn.Linear(input_dim, 32),   # Input: (batch_size, input_dim), Output: (batch_size, 32)
             nn.ReLU(),
-            nn.Dropout(0.2)             # Prevent overfitting
+            nn.LayerNorm(32)
         )
 
-        # Layer 2: Hidden -> Hidden (16 -> 8)
+        # Layer 2: Hidden -> Hidden (32 -> 16)
         self.fc2 = nn.Sequential(
-            nn.Linear(16, 8),           # Output: (batch_size, 8)
-            nn.ReLU(),
-            nn.Dropout(0.1)
+            nn.Linear(32, 16),           # Output: (batch_size, 16)
+            nn.ReLU()
         )
-
+        
         # Output layer: Hidden -> Output (8 -> 1)
-        self.out = nn.Linear(8, 1)      # Output: (batch_size, 1) — for regression
+        self.out = nn.Linear(16, 1)      # Output: (batch_size, 1) — for regression
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

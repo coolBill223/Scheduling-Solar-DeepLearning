@@ -9,6 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import numpy as np
+import seaborn as sns
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -144,8 +145,6 @@ plt.savefig("checkpoints/loss_curve.png")
 
 print("Training complete. Best model saved to 'checkpoints/best_model.pth'")
 
-import seaborn as sns
-
 def plot_predictions(model, X_tensor, y_tensor, scaler, save_path="checkpoints/pred_vs_actual.png"):
     model.eval()
     with torch.no_grad():
@@ -165,3 +164,6 @@ def plot_predictions(model, X_tensor, y_tensor, scaler, save_path="checkpoints/p
     plt.grid(True)
     plt.savefig(save_path)
     print(f"Prediction plot saved to {save_path}")
+    
+plot_predictions(model, X_val, y_val, y_scaler)
+
