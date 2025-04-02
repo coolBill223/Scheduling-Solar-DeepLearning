@@ -17,19 +17,18 @@ def upload_file():
 
 @app.route("/train")
 def train_model():
-    try:
-        train_script = os.path.join(os.getcwd(), "exp", "train.py")
-        result = subprocess.run(
-            ["python3", train_script],
-            capture_output=True,
-            text=True,
-            check=True 
-        )
-        output = f"<pre style='color:green;'>Training completed.\n\nSTDOUT:\n{result.stdout}</pre>"
-        return output
-    except subprocess.CalledProcessError as e:
-        output = f"<pre style='color:red;'>Training failed.\n\nSTDERR:\n{e.stderr or 'No stderr'}\n\nSTDOUT:\n{e.stdout or 'No stdout'}</pre>"
-        return output, 500
+    train_script = os.path.join(os.getcwd(), "exp", "train.py")
+    result = subprocess.run(
+        ["python", train_script],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode == 0:
+        return "Training completed."
+    else:
+        return "Training failed.", 500
 
 
 @app.route("/loss_curve")

@@ -1,3 +1,6 @@
+with open("checkpoints/debug.log", "a") as f:
+    f.write("[STEP 0] train.py loaded\n")
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -75,6 +78,10 @@ def main():
     data_path = os.path.join("data", "raw_data", "uploaded_data.xlsx")
     X, y, X_scaler, y_scaler = load_data(data_path)
 
+    with open("checkpoints/debug.log", "a") as f:
+        f.write("[STEP 2] data loaded\n")
+
+    
     print(f"NaNs in X: {torch.isnan(X).sum().item()}")
     print(f"NaNs in y: {torch.isnan(y).sum().item()}")
 
@@ -87,6 +94,9 @@ def main():
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False)
 
     model = TinyMLP(input_dim=X.shape[1])
+
+    with open("checkpoints/debug.log", "a") as f:
+        f.write("[STEP 3] model initialized\n")
 
     criterion = nn.SmoothL1Loss()
     optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
@@ -163,6 +173,8 @@ def main():
 
     print("Training complete. Best model saved to 'checkpoints/best_model.pth'")
     plot_predictions(model, X_val, y_val, y_scaler)
+    import sys
+    sys.exit(0)
 
 
 if __name__ == "__main__":

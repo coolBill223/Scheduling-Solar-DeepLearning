@@ -43,12 +43,15 @@ dropZone.addEventListener("drop", (e) => {
 trainBtn.addEventListener("click", () => {
   statusDiv.innerText = "Training in progress...";
   fetch("/train")
-    .then((res) => res.text())
+    .then((res) => {
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.text();
+  })
     .then((msg) => {
-      statusDiv.innerText = msg;
-      resultBtn.disabled = false;
-    })
+    statusDiv.innerText = msg;
+    resultBtn.disabled = false;
+  })
     .catch((err) => {
-      statusDiv.innerText = "Training failed: " + err;
-    });
+    statusDiv.innerText = "Training failed: " + err;
+  });
 });
