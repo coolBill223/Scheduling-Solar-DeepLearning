@@ -32,7 +32,8 @@ Visit: https://127.0.0.1:5000
 - Training outputs are saved in the checkpoints/ directory
 - You can modify the model architecture in models/solar_time_model_tiny.py
 
-##Author
+
+## Author
 Developed by Zhirui (Bill) Zhou
 University of Virginia
 School of Engineering and Applied Science
