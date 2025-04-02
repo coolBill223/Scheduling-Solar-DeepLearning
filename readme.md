@@ -34,7 +34,7 @@ Visit: https://127.0.0.1:5000
 
 
 ## Author
-Developed by Zhirui (Bill) Zhou
-University of Virginia
+Developed by Zhirui (Bill) Zhou. 
+University of Virginia. 
 School of Engineering and Applied Science
 
