@@ -1,6 +1,8 @@
 from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string
 import os
 import subprocess
+from flask import request
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder="web/static", template_folder="web")
 
@@ -10,10 +12,25 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
+    if "file" not in request.files:
+        return "No file part", 400
+
     file = request.files["file"]
-    filepath = os.path.join("data", "raw_data", "uploaded_data.xlsx")
+    if file.filename == "":
+        return "No selected file", 400
+
+    # Ensure target directory exists
+    save_dir = os.path.join("data", "raw_data")
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Save the uploaded file
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(save_dir, "uploaded_data.xlsx")
     file.save(filepath)
+
+    print(f"[UPLOAD] File saved to: {filepath}")
     return "File uploaded successfully. Ready to train."
+
 
 @app.route("/train")
 def train_model():
