@@ -143,12 +143,13 @@ def convert_dhm_to_minutes_strict(value):
     >>> print(X.shape, y.shape)
     torch.Size([277, 21]) torch.Size([277, 1])
     """
-def load_data():
+def load_data(file_path=None):
     """ read the excel data and return to the format we need"""
     
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "..", "raw_data", "UPDATED Dataset - Predictive Tool Development for Residential Solar Installation Duration - REV1-3.xlsx")
-
+    if file_path is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "..", "raw_data", "uploaded_data.xlsx")
+    
     if not os.path.exists(file_path):
         print(f"File didn't find: {file_path}")
         return None, None, None, None 
