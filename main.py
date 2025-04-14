@@ -45,7 +45,8 @@ def train_model():
     if result.returncode == 0:
         return "Training completed."
     else:
-        return "Training failed.", 500
+        return f"<h3>Training failed.</h3><pre>{result.stderr}</pre>", 500
+
 
 
 @app.route("/loss_curve")
@@ -58,20 +59,37 @@ def pred_img():
     # Serve the prediction vs actual plot from checkpoints
     return send_file("checkpoints/pred_vs_actual.png", mimetype="image/png")
 
+@app.route("/pred_vs_actual_tree")
+def pred_img_tree():
+    return send_file("checkpoints/pred_vs_actual_tree.png", mimetype="image/png")
+
+@app.route("/pred_vs_actual_lr")
+def pred_img_lr():
+    return send_file("checkpoints/pred_vs_actual_lr.png", mimetype="image/png")
+
 @app.route("/train_result_page")
 def train_result_page():
-    try:
-        with open("checkpoints/metrics.txt") as f:
-            metrics = f.read()
-    except FileNotFoundError:
-        return "No training results found. Please run training first."
+    def render_metrics(name, pretty_name):
+        metrics_path = f"checkpoints/metrics_{name}.txt" if name != "mlp" else "checkpoints/metrics.txt"
+        image_path = f"/pred_vs_actual_{name}" if name != "mlp" else "/pred_vs_actual"
+
+        try:
+            with open(metrics_path) as f:
+                metrics = f.read().replace('\n', '<br>')
+        except FileNotFoundError:
+            metrics = "No results found."
+
+        return f"""
+            <h3>{pretty_name}</h3>
+            <p>{metrics}</p>
+            <img src="{image_path}" width="500"><br><br>
+        """
 
     html = f"""
-    <h2>Training Results</h2>
-    <p>{metrics.replace('\n', '<br>')}</p>
-    <img src="/loss_curve" width="500"><br><br>
-    <img src="/pred_vs_actual" width="500">
-
+    <h2>Training Results for All Models</h2>
+    {render_metrics("mlp", "TinyMLP (Neural Networks)")}
+    {render_metrics("tree", "Tree")}
+    {render_metrics("lr", "Regression")}
     """
     return render_template_string(html)
 

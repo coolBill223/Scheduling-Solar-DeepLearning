@@ -1,3 +1,21 @@
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(270deg, #ff9a9e, #fad0c4, #fad0c4, #fbc2eb, #a18cd1, #fbc2eb, #fad0c4, #ff9a9e);
+  background-size: 1600% 1600%;
+  animation: rainbow 30s ease infinite;
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes rainbow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 #drop_zone {
   width: 320px;
   height: 160px;
@@ -8,6 +26,12 @@
   font-size: 16px;
   color: #555;
   margin: 30px auto;
+  background: linear-gradient(135deg, #e0e0e0, #f9f9f9);
+  transition: transform 0.2s ease;
+}
+
+#drop_zone:hover {
+  transform: scale(1.05);
 }
 
 #status {
@@ -20,4 +44,15 @@ button {
   margin: 20px auto;
   padding: 10px 20px;
   font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
 }

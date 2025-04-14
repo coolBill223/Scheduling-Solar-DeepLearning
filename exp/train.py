@@ -13,12 +13,15 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import numpy as np
 import seaborn as sns
+import argparse
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from data.datasets.data_loader import load_data
 from models.solar_time_model_tiny import TinyMLP
-
+from models.solar_tree_model import SklearnTreeWrapper
+from models.solar_lr_model import SklearnLRWrapper
 
 def evaluate(model, dataloader, criterion):
     model.eval()
@@ -48,25 +51,35 @@ def evaluate_mse_mpe(model, X_tensor, y_tensor, scaler):
         return mse, mpe
 
 
-def plot_predictions(model, X_tensor, y_tensor, scaler, save_path="checkpoints/pred_vs_actual.png"):
-    model.eval()
-    with torch.no_grad():
-        preds = model(X_tensor)
-        y_true = y_tensor.cpu().numpy().reshape(-1, 1)
-        preds = preds.cpu().numpy().reshape(-1, 1)
-
-        y_true = scaler.inverse_transform(y_true).flatten()
-        preds = scaler.inverse_transform(preds).flatten()
-
+def plot_predictions(preds, y_true, name="mlp"):
     plt.figure(figsize=(6, 6))
-    sns.scatterplot(x=y_true, y=preds, alpha=0.6)
+    sns.scatterplot(x=y_true.flatten(), y=preds.flatten(), alpha=0.6)
     plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
     plt.xlabel("Actual")
     plt.ylabel("Predicted")
-    plt.title("Predicted vs Actual")
+    plt.title(f"{name.upper()} Prediction vs Actual")
     plt.grid(True)
-    plt.savefig(save_path)
-    print(f"Prediction plot saved to {save_path}")
+    path = f"checkpoints/pred_vs_actual_{name}.png"
+    plt.savefig(path)
+    print(f"[{name}] Prediction plot saved to {path}")
+
+def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, name):
+    print(f"[{name}] Training started")
+    model = model_cls()
+    model.fit(X_train, y_train)
+
+    preds = model.predict(X_val)
+    y_true = y_scaler.inverse_transform(y_val.numpy().reshape(-1, 1)).flatten()
+    preds = y_scaler.inverse_transform(preds).flatten()
+
+    mse = np.mean((preds - y_true) ** 2)
+    mpe = np.mean(((preds - y_true) / y_true)[y_true != 0]) * 100
+
+    with open(f"checkpoints/metrics_{name}.txt", "w") as f:
+        f.write(f"MSE: {mse:.4f}\nMPE: {mpe:.2f}%\n")
+
+    plot_predictions(preds, y_true, name)
+    print(f"[{name}] Done. MSE={mse:.4f}, MPE={mpe:.2f}%")
 
 
 def main():
@@ -106,7 +119,7 @@ def main():
     val_losses = []
     num_epochs = 300
     best_val_loss = float("inf")
-    early_stopping_patience = 20
+    early_stopping_patience = 88
     no_improve_count = 0
 
     os.makedirs("checkpoints", exist_ok=True)
@@ -172,7 +185,16 @@ def main():
     plt.savefig("checkpoints/loss_curve.png")
 
     print("Training complete. Best model saved to 'checkpoints/best_model.pth'")
-    plot_predictions(model, X_val, y_val, y_scaler)
+    with torch.no_grad():
+        preds = model(X_val)
+        y_true = y_scaler.inverse_transform(y_val.numpy())
+        pred_vals = y_scaler.inverse_transform(preds.numpy())
+    plot_predictions(pred_vals, y_true, name="mlp")
+
+    
+    train_sklearn_model(SklearnTreeWrapper, X_train, y_train, X_val, y_val, y_scaler, name="tree")
+    train_sklearn_model(SklearnLRWrapper, X_train, y_train, X_val, y_val, y_scaler, name="lr")
+    
     import sys
     sys.exit(0)
 
