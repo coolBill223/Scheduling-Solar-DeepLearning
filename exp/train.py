@@ -1,5 +1,17 @@
-with open("checkpoints/debug.log", "a") as f:
-    f.write("[STEP 0] train.py loaded\n")
+import os
+
+
+base_dir = os.getcwd()
+checkpoint_dir = os.path.join(base_dir, "checkpoints")
+os.makedirs(checkpoint_dir, exist_ok=True)
+debug_log_path = os.path.join(checkpoint_dir, "debug.log")
+
+
+try:
+    with open(debug_log_path, "a") as f:
+        f.write("[STEP 0] train.py loaded\n")
+except Exception as e:
+    print(f"Logging failed: {e}")
 
 import torch
 import torch.nn as nn
@@ -51,7 +63,7 @@ def evaluate_mse_mpe(model, X_tensor, y_tensor, scaler):
         return mse, mpe
 
 
-def plot_predictions(preds, y_true, name="mlp"):
+def plot_predictions(preds, y_true, name="mlp", out_dir=None):
     plt.figure(figsize=(6, 6))
     sns.scatterplot(x=y_true.flatten(), y=preds.flatten(), alpha=0.6)
     plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
@@ -59,7 +71,7 @@ def plot_predictions(preds, y_true, name="mlp"):
     plt.ylabel("Predicted")
     plt.title(f"{name.upper()} Prediction vs Actual")
     plt.grid(True)
-    path = f"checkpoints/pred_vs_actual_{name}.png"
+    path = os.path.join(checkpoint_dir, f"pred_vs_actual_{name}.png")
     plt.savefig(path)
     print(f"[{name}] Prediction plot saved to {path}")
 
@@ -75,7 +87,7 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
     mse = np.mean((preds - y_true) ** 2)
     mpe = np.mean(((preds - y_true) / y_true)[y_true != 0]) * 100
 
-    with open(f"checkpoints/metrics_{name}.txt", "w") as f:
+    with open(os.path.join(checkpoint_dir, f"metrics_{name}.txt"), "w") as f:
         f.write(f"MSE: {mse:.4f}\nMPE: {mpe:.2f}%\n")
 
     plot_predictions(preds, y_true, name)
@@ -83,7 +95,7 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
 
 
 def main():
-    with open("checkpoints/debug.log", "a") as f:
+    with open(debug_log_path, "a") as f:
         f.write("[train.py] main() started\n")
 
     print("[train.py] Script has started.")
@@ -91,7 +103,7 @@ def main():
     data_path = os.path.join("data", "raw_data", "uploaded_data.xlsx")
     X, y, X_scaler, y_scaler = load_data(data_path)
 
-    with open("checkpoints/debug.log", "a") as f:
+    with open(debug_log_path, "a") as f:
         f.write("[STEP 2] data loaded\n")
 
     
@@ -108,7 +120,7 @@ def main():
 
     model = TinyMLP(input_dim=X.shape[1])
 
-    with open("checkpoints/debug.log", "a") as f:
+    with open(debug_log_path, "a") as f:
         f.write("[STEP 3] model initialized\n")
 
     criterion = nn.SmoothL1Loss()
@@ -153,7 +165,7 @@ def main():
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), "checkpoints/best_model.pth")
+            torch.save(model.state_dict(), os.path.join(checkpoint_dir, "best_model.pth"))
             no_improve_count = 0
         else:
             no_improve_count += 1
@@ -164,14 +176,14 @@ def main():
 
         scheduler.step(val_loss)
 
-    torch.save(model.state_dict(), "checkpoints/final_model.pth")
-    joblib.dump(y_scaler, "checkpoints/y_scaler.pkl")
+    torch.save(model.state_dict(), os.path.join(checkpoint_dir, "final_model.pth"))
+    joblib.dump(y_scaler, os.path.join(checkpoint_dir, "y_scaler.pkl"))
 
     mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
     print("Final Validation Evaluation:")
     print(f"MSE: {mse:.4f}")
     print(f"MPE: {mpe:.2f}%")
-    with open("checkpoints/metrics.txt", "w") as f:
+    with open(os.path.join(checkpoint_dir, "metrics.txt"), "w") as f:
         f.write(f"MSE: {mse:.4f}\nMPE: {mpe:.2f}%\n")
 
     plt.figure(figsize=(8, 6))
@@ -182,14 +194,14 @@ def main():
     plt.title("Training and Validation Loss Over Epochs")
     plt.legend()
     plt.grid()
-    plt.savefig("checkpoints/loss_curve.png")
+    plt.savefig(os.path.join(checkpoint_dir, "loss_curve.png"))
 
     print("Training complete. Best model saved to 'checkpoints/best_model.pth'")
     with torch.no_grad():
         preds = model(X_val)
         y_true = y_scaler.inverse_transform(y_val.numpy())
         pred_vals = y_scaler.inverse_transform(preds.numpy())
-    plot_predictions(pred_vals, y_true, name="mlp")
+    plot_predictions(pred_vals, y_true, name="mlp", out_dir=checkpoint_dir)
 
     
     train_sklearn_model(SklearnTreeWrapper, X_train, y_train, X_val, y_val, y_scaler, name="tree")
