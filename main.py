@@ -34,7 +34,8 @@ def upload_file():
 
 @app.route("/train")
 def train_model():
-    train_script = os.path.join(os.getcwd(), "exp", "train.py")
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    train_script = os.path.join(BASE_DIR, "exp", "train.py")
     result = subprocess.run(
         ["python", train_script],
         capture_output=True,
