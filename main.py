@@ -36,7 +36,7 @@ def upload_file():
     if file and file.filename.endswith(".xlsx"):
         file_path = os.path.join("data", "raw_data", "Data.xlsx")
         file.save(file_path)
-        subprocess.run(["python", "exp/train.py"])
+        subprocess.run(["python", "exp/trainNew.py"])
 
         
         return redirect("/train.html?status=success")
@@ -47,7 +47,7 @@ def upload_file():
 @app.route("/train")
 def train_model():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    train_script = os.path.join(BASE_DIR, "exp", "train.py")
+    train_script = os.path.join(BASE_DIR, "exp", "trainNew.py")
     result = subprocess.run(
         ["python", train_script],
         capture_output=True,
@@ -106,7 +106,7 @@ def train_result_page():
     """
     return render_template_string(html)
 
-@app.route("/predict", methods=["POST"])
+@app.route("/predict", methods=["GET","POST"])
 def predict():
     try:
         data = request.get_json()

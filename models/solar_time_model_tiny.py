@@ -13,7 +13,7 @@ class TinyMLP(nn.Module):
         # Layer 1: Input -> Hidden (input_dim -> 32)
         self.fc1 = nn.Sequential(
             nn.Linear(input_dim, 32),   # Input: (batch_size, input_dim), Output: (batch_size, 32)
-            nn.ReLU(),
+            nn.GELU(),
             nn.LayerNorm(32)
         )
 
@@ -34,7 +34,11 @@ class TinyMLP(nn.Module):
         Returns:
             Tensor: Output tensor of shape (batch_size, 1)
         """
+        self.dropout = nn.Dropout(0.2)  # 20% dropout rate
         x = self.fc1(x)
+        x = self.dropout(x)
         x = self.fc2(x)
+        x = self.dropout(x)
         x = self.out(x)
+
         return x

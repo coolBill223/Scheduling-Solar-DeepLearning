@@ -117,14 +117,26 @@ def main():
     print(f"NaNs in y: {torch.isnan(y).sum().item()}")
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42, shuffle=False)
-
+    tree_model = SklearnTreeWrapper()
+    lr_model = SklearnLRWrapper()
+    tree_model.fit(X_train.numpy(), y_train.numpy().flatten())
+    lr_model.fit(X_train.numpy(), y_train.numpy().flatten())
+    
+    tree_train_pred = tree_model.predict(X_train.numpy()).reshape(-1, 1)
+    tree_val_pred = tree_model.predict(X_val.numpy()).reshape(-1, 1)
+    lr_train_pred = lr_model.predict(X_train.numpy()).reshape(-1, 1)
+    lr_val_pred = lr_model.predict(X_val.numpy()).reshape(-1, 1)
+    
+    X_train_ext = torch.tensor(np.concatenate([X_train.numpy(), tree_train_pred, lr_train_pred], axis=1), dtype=torch.float32)
+    X_val_ext = torch.tensor(np.concatenate([X_val.numpy(), tree_val_pred, lr_val_pred], axis=1), dtype=torch.float32)
+    
     train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
     val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False)
 
-    model = TinyMLP(input_dim=X.shape[1])
+    model = TinyMLP(input_dim=X.shape[1] + 2)
 
     with open(debug_log_path, "a") as f:
         f.write("[STEP 3] model initialized\n")
@@ -135,9 +147,9 @@ def main():
 
     train_losses = []
     val_losses = []
-    num_epochs = 300
+    num_epochs = 900000
     best_val_loss = float("inf")
-    early_stopping_patience = 88
+    early_stopping_patience = None
     no_improve_count = 0
 
     os.makedirs("checkpoints", exist_ok=True)
@@ -175,10 +187,10 @@ def main():
             no_improve_count = 0
         else:
             no_improve_count += 1
-
-        if no_improve_count >= early_stopping_patience:
-            print(f"Early stopping at epoch {epoch}")
-            break
+        if early_stopping_patience is not None:
+            if no_improve_count >= early_stopping_patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
 
         scheduler.step(val_loss)
 
