@@ -1,8 +1,8 @@
-from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string
+from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string, redirect,jsonify
 import os
 import subprocess
 from werkzeug.utils import secure_filename
-
+from models.predict_engine import predict_with_model
 app = Flask(__name__, static_folder="web/static", template_folder="web")
 
 @app.route("/")
@@ -30,30 +30,18 @@ def instructions_page():
 def index_page():
     return render_template("index.html")
 
-@app.route("/upload", methods=["POST"])
+@app.route('/upload', methods=['POST'])
 def upload_file():
-    if "file" not in request.files:
-        return "No file part", 400
-    
-    file = request.files["file"]
-    
-    if file.filename == "":
-        return "No selected file", 400
-    
-    if not file.filename.endswith(".xlsx"):
-        return "Invalid file type. Please upload an Excel (.xlsx) file.", 400
+    file = request.files.get("file")
+    if file and file.filename.endswith(".xlsx"):
+        file_path = os.path.join("data", "raw_data", "Data.xlsx")
+        file.save(file_path)
+        subprocess.run(["python", "exp/train.py"])
 
-    # Ensure target directory exists
-    save_dir = os.path.join("data", "raw_data")
-    os.makedirs(save_dir, exist_ok=True)
+        
+        return redirect("/train.html?status=success")
+    return redirect("/train.html?status=fail")
 
-    # Save the uploaded file
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(save_dir, "uploaded_data.xlsx")
-    file.save(filepath)
-
-    print(f"[UPLOAD] File saved to: {filepath}")
-    return "File uploaded successfully. Ready to train."
 
 
 @app.route("/train")
@@ -117,6 +105,30 @@ def train_result_page():
     {render_metrics("lr", "Regression")}
     """
     return render_template_string(html)
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        data = request.get_json()
+        model_type = data.get("model")
+
+        selected_features = [
+            "tilt", "azimuth", "panel_qty", "system_rating", "inverter_manufacturer", "array_type",
+            "squirrel_screen", "consumption_monitoring", "truss_rafter", "reinforcements", "interconnection_type",
+            "module_length", "module_width", "module_weight", "num_arrays", "num_circuits", "num_reinforcement",
+            "roof_type", "attachment_type", "orientation", "num_stories", "install_season", "num_employees"
+        ] 
+        features = []
+        for key in selected_features:
+            try:
+                features.append(float(data.get(key, 0)))
+            except:
+                features.append(0.0)
+
+        prediction = predict_with_model(model_type, features)
+        return jsonify({"prediction": prediction})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

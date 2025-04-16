@@ -53,8 +53,8 @@ def evaluate_mse_mpe(model, X_tensor, y_tensor, scaler):
         y_true = y_tensor.cpu().numpy().reshape(-1, 1)
         preds = preds.cpu().numpy().reshape(-1, 1)
 
-        y_true = np.clip(scaler.inverse_transform(y_true).flatten(), 0, None)
-        preds = np.clip(scaler.inverse_transform(preds).flatten(), 0, None)
+        y_true = np.clip(scaler.inverse_transform(y_true).flatten() ** 2, 0, None)
+        preds = np.clip(scaler.inverse_transform(preds).flatten() ** 2, 0, None)
 
         mse = np.mean((preds - y_true) ** 2)
         nonzero = y_true != 0
@@ -81,16 +81,22 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
     model.fit(X_train, y_train)
 
     preds = model.predict(X_val)
-    y_true = y_scaler.inverse_transform(y_val.numpy().reshape(-1, 1)).flatten()
-    preds = y_scaler.inverse_transform(preds).flatten()
+    y_true = y_scaler.inverse_transform(y_val.numpy().reshape(-1, 1)).flatten() ** 2
+    preds = y_scaler.inverse_transform(preds).flatten() ** 2
 
     mse = np.mean((preds - y_true) ** 2)
     mpe = np.mean(((preds - y_true) / y_true)[y_true != 0]) * 100
 
     with open(os.path.join(checkpoint_dir, f"metrics_{name}.txt"), "w") as f:
         f.write(f"MSE: {mse:.4f}\nMPE: {mpe:.2f}%\n")
-
+    
+    bias = np.mean(y_true - preds)
+    preds += bias
     plot_predictions(preds, y_true, name)
+    print(f"[{name} Bias] Bias = {bias:.2f} minutes")
+    with open(os.path.join(checkpoint_dir, f"{name}_bias.txt"), "w") as f:
+        f.write(str(bias))
+        
     print(f"[{name}] Done. MSE={mse:.4f}, MPE={mpe:.2f}%")
 
 
@@ -179,13 +185,16 @@ def main():
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "final_model.pth"))
     joblib.dump(y_scaler, os.path.join(checkpoint_dir, "y_scaler.pkl"))
 
+    # Evaluate performance before bias correction
     mse, mpe = evaluate_mse_mpe(model, X_val, y_val, y_scaler)
-    print("Final Validation Evaluation:")
+    print("Final Validation Evaluation (before bias):")
     print(f"MSE: {mse:.4f}")
     print(f"MPE: {mpe:.2f}%")
+
     with open(os.path.join(checkpoint_dir, "metrics.txt"), "w") as f:
         f.write(f"MSE: {mse:.4f}\nMPE: {mpe:.2f}%\n")
 
+    # Draw loss curve
     plt.figure(figsize=(8, 6))
     plt.plot(train_losses, label="Train Loss", marker="o")
     plt.plot(val_losses, label="Validation Loss", marker="s")
@@ -196,12 +205,30 @@ def main():
     plt.grid()
     plt.savefig(os.path.join(checkpoint_dir, "loss_curve.png"))
 
+    # Apply bias correction to predictions
     print("Training complete. Best model saved to 'checkpoints/best_model.pth'")
     with torch.no_grad():
         preds = model(X_val)
-        y_true = y_scaler.inverse_transform(y_val.numpy())
-        pred_vals = y_scaler.inverse_transform(preds.numpy())
+        y_true = y_scaler.inverse_transform(y_val.numpy()) ** 2
+        pred_vals = y_scaler.inverse_transform(preds.numpy()) ** 2
+
+    bias = np.mean(y_true - pred_vals)
+    pred_vals += bias
+
+    # Re-evaluate after bias
+    mse_biased = np.mean((pred_vals - y_true) ** 2)
+    mpe_biased = np.mean(((pred_vals - y_true) / y_true)[y_true != 0]) * 100
+
+    print("Final Validation Evaluation (with bias):")
+    print(f"MSE: {mse_biased:.4f}")
+    print(f"MPE: {mpe_biased:.2f}%")
+    print(f"[MLP Bias] Bias applied: {bias:.2f} minutes")
+
+    # Save predictions and bias
     plot_predictions(pred_vals, y_true, name="mlp", out_dir=checkpoint_dir)
+    with open(os.path.join(checkpoint_dir, "mlp_bias.txt"), "w") as f:
+        f.write(str(bias))
+
 
     
     train_sklearn_model(SklearnTreeWrapper, X_train, y_train, X_val, y_val, y_scaler, name="tree")
