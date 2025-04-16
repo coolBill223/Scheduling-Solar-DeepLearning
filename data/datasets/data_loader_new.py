@@ -4,309 +4,234 @@ import os
 import torch
 import re
 import datetime
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 
-import re
+# ----------------------------------------------------------
+# Utility Functions
+# ----------------------------------------------------------
 
 def clean_angle(value):
-    """change Angles to the integer data we need"""
+    """Convert tilt / azimuth values like "90°" or "30/15" to float.
+    If parsing fails we propagate NaN so that later fill / drop rules apply."""
     if pd.isna(value):
-        return np.nan  #keep nan for nan
-    value = str(value).replace("°", "").strip()  # move the sign °
-    
-    if "/" in value:  # changing the angels with "/"
+        return np.nan
+
+    value = str(value).replace("°", "").strip()
+
+    if "/" in value:  # average e.g. "20/25"
         try:
-            values = list(map(float, value.split("/")))
-            return sum(values) / len(values)  # get the average
-        except:
-            return np.nan  # read input failed, return nan
-    
-    try:
-        return float(value)  # translate into integer
-    except:
-        return np.nan  # read input failed, return nan
-
-def convert_time_to_minutes(value):
-    """ change time to the numerical data we need """
-    if pd.isna(value) or value in ["nan", "None", ""]:
-        return None  #fill none if there is nan, none or no value
-
-    if isinstance(value, pd.Timedelta): 
-        return value.total_seconds() / 60
-    elif isinstance(value, datetime.datetime) or isinstance(value, datetime.time):  
-        return value.hour * 60 + value.minute
-    elif isinstance(value, str):  # change the str to datetime
-        value = value.strip().lower()
-
-        # **if time is going to the format with hh: mm**
-        match = re.match(r"(\d+):(\d+)(?::(\d+))?", value)
-        if match:
-            h, m, s = map(lambda x: int(x) if x else 0, match.groups())
-            return h * 60 + m
-
-        # **dealing with the time format such as 2h 15m**
-        match = re.match(r"(\d+)\s*h\s*(\d*)\s*m?", value, re.IGNORECASE)
-        if match:
-            h = int(match.group(1))
-            m = int(match.group(2)) if match.group(2) else 0
-            return h * 60 + m
-
-        # **change the 15mins to 15**
-        match = re.match(r"(\d+)\s*mins?", value)
-        if match:
-            return int(match.group(1))  # just return the numerical time 
-
-        # **dealing with the time format with integer**
-        if value.isnumeric():
-            return int(value)
-
-    return None  # read input failed, return none
-
-def convert_dhm_to_minutes_strict(value):
-    """
-    Converts D:H:M format from datetime.datetime, datetime.time, or string.
-    Correctly accounts for Excel dates starting from 1900-01-01 as day 1.
-    """
-    import datetime
-
-    if pd.isna(value) or value in ["", "nan", "None"]:
-        return None
+            return np.mean([float(v) for v in value.split("/")])
+        except ValueError:
+            return np.nan
 
     try:
-        if isinstance(value, datetime.datetime):
-            # ✅ Always treat as at least 1 day
-            return 1440 + value.hour * 60 + value.minute + value.second / 60
+        return float(value)
+    except ValueError:
+        return np.nan
 
-        elif isinstance(value, datetime.time):
-            return value.hour * 60 + value.minute + value.second / 60
+# ---------------------------------------------------------------------------
+# Generic helpers to fallback‑parse human readable durations ( “2h 15m”, etc.)
+# ---------------------------------------------------------------------------
 
-        # Strings like D:H:M or D:H
-        parts = list(map(int, str(value).strip().split(":")))
-
-        if len(parts) == 3:
-            d, h, m = parts
-        elif len(parts) == 2:
-            d, h = parts
-            m = 0
-        elif len(parts) == 1:
-            d = 0
-            h = parts[0]
-            m = 0
-        else:
-            return None
-
-        return d * 1440 + h * 60 + m
-    except Exception as e:
-        print(f"[WARN] Failed to convert {value} ({type(value)}): {e}")
+def convert_time_to_minutes(text):
+    """Fairly permissive fallback parser for durations that are *not* of the
+    colon‑separated style handled later. Returns **minutes** or None."""
+    if pd.isna(text) or text in ("", "nan", "None"):
         return None
 
+    if isinstance(text, pd.Timedelta):
+        return text.total_seconds() / 60
+
+    if isinstance(text, (datetime.datetime, datetime.time)):
+        return text.hour * 60 + text.minute + text.second / 60
+
+    text = str(text).strip().lower()
+
+    # hh:mm(:ss)
+    m = re.match(r"^(\d+):(\d+)(?::(\d+))?$", text)
+    if m:
+        h, m_, s = (int(x) if x else 0 for x in m.groups())
+        return h * 60 + m_ + s / 60
+
+    # "2h 15m" / "3h"
+    m = re.match(r"^(\d+)\s*h(?:\s*(\d+)\s*m)?$", text)
+    if m:
+        h = int(m.group(1)); m_ = int(m.group(2) or 0)
+        return h * 60 + m_
+
+    # "90mins"
+    m = re.match(r"^(\d+)\s*mins?$", text)
+    if m:
+        return int(m.group(1))
+
+    # Plain integer – assume minutes
+    if text.isdigit():
+        return int(text)
+
+    return None  # give up
+
+# ---------------------------------------------------------------------------
+# Robust Excel target‑column parser
+# ---------------------------------------------------------------------------
+
+def _interpret_two_colon_parts(parts, total_days):
+    """Handle ambiguous "a:b" cases.
+    * If `total_days > 1`  ⇒ (total_days‑1) days + a h b m
+    * Else if a ≥ 24       ⇒ treat a as *days*   (a d b h)
+    * Otherwise            ⇒ treat as *hours:minutes*"""
+    a, b = parts
+    if total_days > 1:
+        return (total_days - 1) * 1440 + a * 60 + b
+    if a >= 24:
+        return a * 1440 + b * 60
+    return a * 60 + b
 
 
+def parse_install_time(row, target_col, days_col):
+    """Convert the raw *target* cell plus the sibling "Total # of Days on Site"
+    to **minutes**.  This function tries, in order:
+    1. native Timedelta / datetime objects
+    2. "D:H:M:S", "H:M:S", "H:M" or "D:H"  colon formats
+    3. Fallback regexes handled by `convert_time_to_minutes`.
+    Returns None if parsing fails."""
+    raw = row[target_col]
+    total_days = row.get(days_col, np.nan)
 
+    # 1. Missing value
+    if pd.isna(raw) or raw in ("", "nan", "None"):
+        return None
 
+    # 2. Timedelta
+    if isinstance(raw, pd.Timedelta):
+        return raw.total_seconds() / 60
 
+    # 3. datetime / time: Excel stores "1 day + hh:mm:ss" as datetime
+    if isinstance(raw, (datetime.datetime, datetime.time)):
+        base_min = 1440 if total_days > 1 else 0  # Excel never starts at day‑0
+        return base_min + raw.hour * 60 + raw.minute + raw.second / 60
 
+    # 4. String parsing
+    text = str(raw).strip()
+    parts = text.split(":")
+    try:
+        parts_f = [float(p) for p in parts]
+    except ValueError:
+        parts_f = []  # will fall back
 
-"""
-    Load and preprocess the solar installation dataset from Excel.
+    if len(parts_f) == 4:          # D:H:M:S
+        d, h, m, s = parts_f
+        return d * 1440 + h * 60 + m + s / 60
+    if len(parts_f) == 3:          # H:M:S
+        h, m, s = parts_f
+        return h * 60 + m + s / 60
+    if len(parts_f) == 2:          # ambiguous → helper
+        return _interpret_two_colon_parts(parts_f, total_days)
 
-    This function reads the dataset from an Excel file, performs the following steps:
-    - Skips irrelevant rows and columns
-    - Cleans column names
-    - Parses time fields (e.g. drive time, total install time)
-    - Converts angle values (e.g. tilt, azimuth)
-    - Encodes categorical and boolean features(change into integers)
-    - Selects numeric features and drops excluded columns(users can edit this part)
-    - Standardizes input features (X) and normalizes target variable (y)
-    - Converts both to PyTorch tensors
+    # 5. Fallback regex rules
+    return convert_time_to_minutes(text)
 
-    Parameters:
-    None
+# ----------------------------------------------------------
+# Main loader
+# ----------------------------------------------------------
 
-    Returns:
-    --------
-    X : torch.Tensor, shape (n_samples, n_features)
-        Standardized input features used for modeling.
-    
-    y : torch.Tensor, shape (n_samples, 1)
-        Normalized target variable (installation duration in minutes, sqrt-transformed).
-    
-    X_scaler : sklearn.preprocessing.StandardScaler
-        Scaler used to standardize X (useful for inverse-transforming predictions).
-    
-    y_scaler : sklearn.preprocessing.StandardScaler
-        Scaler used to normalize y (useful for inverse-transforming predictions).
-
-    Example:
-    --------
-    >>> X, y, X_scaler, y_scaler = load_data()
-    >>> print(X.shape, y.shape)
-    torch.Size([277, 21]) torch.Size([277, 1])
-    """
 def load_data(file_path=None):
-    """ read the excel data and return to the format we need"""
-    
+    """Read Excel, clean + standardise features, *robustly* convert the target
+    column to minutes, then apply √‑transform + scaling.
+    Returns: X_train, X_val, y_train, y_val, y_scaler"""
+
+    # ---------------- Resolve path ----------------
     if file_path is None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(base_dir, "..", "raw_data", "uploaded_data.xlsx")
-    
-    if not os.path.exists(file_path):
-        print(f"File didn't find: {file_path}")
-        return None, None, None, None 
 
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Excel file not found: {file_path}")
+
+    # --------------- Read header row heuristically ---------------
     preview = pd.read_excel(file_path, engine="openpyxl", nrows=10, header=None)
-    header_row = preview.apply(lambda row: row.notna().sum(), axis=1).idxmax()  # Finding a first row that isn't nan
-    
+    header_row = preview.apply(lambda r: r.notna().sum(), axis=1).idxmax()
     df = pd.read_excel(file_path, engine="openpyxl", header=header_row)
-    
-    # delete the empty row and the first column
+
+    # --------------- Basic sanitising ---------------
     df.dropna(how="all", inplace=True)
     df.dropna(axis=1, how="all", inplace=True)
-    
     df.columns = df.columns.str.strip().str.replace("\n", " ")
 
-    unnamed_cols = [col for col in df.columns if col.lower().startswith("unnamed")]
-    df.drop(columns=unnamed_cols, inplace=True)
+    df.drop(columns=[c for c in df.columns if c.lower().startswith("unnamed")], inplace=True)
 
     if df.empty:
-        print("The file is empty, please check the file！")
-        return None, None, None, None  
+        raise ValueError("Excel appears empty after cleaning header/blank rows.")
 
-    print(f"Data load successfully! Shape: {df.shape}")
-
-    
-    # target 
+    # --------------- Target engineering ---------------
     target = "Total Direct Time for Project for Hourly Employees (Including Drive Time)"
-    
+    days_col = "Total # of Days on Site"
+
     if target not in df.columns:
-        #print(f"Target {target} doesn't exist！")
-        return None, None, None, None  
+        raise KeyError(f"Target column '{target}' not found in sheet.")
 
-    # Convert target column to minutes if needed
-    if pd.api.types.is_timedelta64_dtype(df[target]):
-        df[target] = df[target].dt.total_seconds() / 60
-    elif df[target].apply(lambda x: isinstance(x, (datetime.datetime, datetime.time, str, pd.Timedelta))).any():
-        df[target] = df[target].apply(convert_dhm_to_minutes_strict)
+    if days_col not in df.columns:
+        df[days_col] = 1  # assume 1 day if the column is missing
 
-    df[target] = pd.to_numeric(df[target], errors="coerce")
+    df[target] = df.apply(lambda r: parse_install_time(r, target, days_col), axis=1)
 
-    # Process Drive Time
+    # Process Drive Time if present
     if "Drive Time" in df.columns:
-        if pd.api.types.is_timedelta64_dtype(df["Drive Time"]):
-            df["Drive Time"] = df["Drive Time"].dt.total_seconds() / 60
-        else:
-            df["Drive Time"] = df["Drive Time"].astype(str).str.strip()
-            df["Drive Time"] = df["Drive Time"].replace(["", "nan", "None"], pd.NA)
-            df["Drive Time"] = df["Drive Time"].apply(convert_time_to_minutes)
-        df["Drive Time"] = pd.to_numeric(df["Drive Time"], errors="coerce").fillna(0)
+        drive = df["Drive Time"].apply(convert_time_to_minutes).fillna(0)
+        df[target] = df[target] - drive
 
-    # Subtract drive time BEFORE applying sqrt
-    df[target] = df[target] - df["Drive Time"]
-    df[target] = df[target].clip(lower=0)      # ensure no negatives
-    df[target] = np.sqrt(df[target])           # apply sqrt after subtracting drive time
+    # Clip negatives and apply √‑transform (stabilise variance)
+    df[target] = df[target].clip(lower=0)
+    df[target] = np.sqrt(df[target])
 
-    # Fill any remaining NaNs
-    df[target] = df[target].fillna(df[target].mean())
+    # Drop rows where target still missing
+    df.dropna(subset=[target], inplace=True)
 
-
+    # --------------- Feature engineering ---------------
     if "Tilt" in df.columns:
         df["Tilt"] = df["Tilt"].apply(clean_angle)
-
     if "Azimuth" in df.columns:
         df["Azimuth"] = df["Azimuth"].apply(clean_angle)
-    
-    # change yes/no to 1/0
-    boolean_cols = [col for col in df.columns if df[col].dropna().astype(str).apply(lambda x: x.lower() in ["yes", "no"]).all()]
-    for col in boolean_cols:
-        df[col] = df[col].map({"Yes": 1, "No": 0, "yes": 1, "no": 0})  
 
-    # use Label Encoding
-    categorical_cols = df.select_dtypes(exclude=["number"]).columns.tolist()
-    categorical_cols = [col for col in categorical_cols if col not in boolean_cols + [target]]  # exclude boolean and target
+    # yes/no → 1/0
+    bool_cols = [c for c in df.columns if df[c].dropna().astype(str).str.lower().isin(["yes", "no"]).all()]
+    for c in bool_cols:
+        df[c] = df[c].map({"yes": 1, "no": 0, "Yes": 1, "No": 0})
 
-    for col in categorical_cols:
-        df[col] = df[col].astype(str)  # make sure the data is string
-        df[col] = df[col].factorize()[0] + 1  # start given the label start from 1
+    # Label‑encode remaining categoricals
+    cat_cols = df.select_dtypes(exclude=["number"]).columns.difference(bool_cols + [target])
+    for c in cat_cols:
+        df[c] = df[c].astype(str).factorize()[0] + 1
 
-    # change to numeric
-    df[target] = pd.to_numeric(df[target], errors="coerce")
-
-    #print(f"Target {target} is null: {df[target].isnull().sum()}")
-    #print(df[target].dtype)
-    #print(df[target].head(10))
-
-    df = df.dropna(subset=[target])  # delete the row that y is null
-
-
-    #print(f"Data column: {df.columns.tolist()}")
-
-    # **check nan/null**
-    #print(f"Data is null:\n{df.isnull().sum()}")
-
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #CHANGE THE EXCLUDE COLUMNS HERE!!!!!!
-    exclude_columns = [
-        "Project ID", "Notes", "Total # of Days on Site",
-        "Estimated # of Salaried Employees on Site",
-        "Estimated Salary Hours",
-        "Estimated Total Direct Time",
-        "Estimated Total # of People on Site","Drive Time"
+    # Exclude obviously non‑predictive / leakage columns
+    exclude = [
+        "Project ID", "Notes", "Total # of Days on Site", "Estimated # of Salaried Employees on Site",
+        "Estimated Salary Hours", "Estimated Total Direct Time", "Estimated Total # of People on Site",
+        "Drive Time"
     ]
+    features = [c for c in df.columns if c not in exclude + [target]]
 
+    # Ensure numeric & fill NaNs with zero before scaling
+    df[features] = df[features].apply(pd.to_numeric, errors="coerce").fillna(0)
 
-    # reget all the features
-    features = [col for col in df.columns if col != target and col not in exclude_columns]
-    missing_features = [col for col in features if col not in df.columns]
-
-    if missing_features:
-        print(f"Columns with missing features: {missing_features}")
-        return None, None, None, None  
-
-    # **check the feature head is null**
-    #print(f"Selected features:\n{df[features].head()}")
-
-    # **make sure all the data is numeric**
-    for col in features:
-        if pd.api.types.is_timedelta64_dtype(df[col]):
-            #print(f"`{col}` is timedelta64 type，translate into minutes")
-            df[col] = df[col].dt.total_seconds() / 60
-
-    pd.set_option("display.max_columns", None)
-    print(f"The first 10 rows of the data:\n{df[features].head(10)}")
-    
-# **Standardization**
+    # --------------- Scaling ---------------
     X_scaler = StandardScaler()
-    df[features] = df[features].fillna(0)  # fill nan with 0
     df[features] = X_scaler.fit_transform(df[features])
 
-
-    # ** normalization y**
     y_scaler = StandardScaler()
-    y = df[[target]].values
-    y = pd.DataFrame(y).fillna(0).values  # ✅ fill NaN with 0
-    y = y_scaler.fit_transform(y)
+    y = y_scaler.fit_transform(df[[target]])
 
-    # **turn into torch**
-    X = torch.tensor(df[features].values, dtype=torch.float32)
-    y = torch.tensor(y, dtype=torch.float32).view(-1, 1)
+    # --------------- Torch tensors + train/val split ---------------
+    X_tensor = torch.tensor(df[features].values, dtype=torch.float32)
+    y_tensor = torch.tensor(y, dtype=torch.float32)
 
-    print(f"Selected features: {features}")
-    print(f"Data after standardization and normalization:\n{df[features].head(10)}")
-    print(f"Data loaded successfully! X shape: {X.shape}, y shape: {y.shape}")
-
-    # Optional: show a few original y values (after inverse transform and square)
-    y_sqrt = y_scaler.inverse_transform(y.numpy())  # shape: (N, 1)
-    y_real_minutes = y_sqrt ** 2                    # undo sqrt()
-
-    # Convert to pandas for pretty display
-    y_real_minutes = pd.DataFrame(y_real_minutes, columns=["Install Time (min)"])
-    print("\nFirst 10 rows of real target values (in minutes):")
-    print(y_real_minutes.head(10))
     from sklearn.model_selection import train_test_split
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_tensor, y_tensor, test_size=0.2, random_state=42
+    )
 
-# Split into train and validation sets
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
-    return X_train, X_val, y_train, y_val, y_scaler  
+    return X_train, X_val, y_train, y_val, y_scaler
+
 
 if __name__ == "__main__":
-    X, y, X_scaler, y_scaler = load_data()
+    X_train, X_val, y_train, y_val, y_scaler = load_data()
+    print("✔ Data loader ran successfully. Train shape:", X_train.shape)

@@ -2,7 +2,7 @@ import os
 import torch
 import joblib
 import numpy as np
-from solar_time_model_tiny import TinyMLP
+from models.solar_time_model_tiny import TinyMLP
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -30,8 +30,9 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         lr_model = joblib.load("checkpoints/lr_model.pkl")
 
         # Predict tree & lr outputs
-        tree_pred = tree_model.predict(X).reshape(-1, 1)
-        lr_pred = lr_model.predict(X).reshape(-1, 1)
+        X_torch = torch.from_numpy(X.astype(np.float32))
+        tree_pred = tree_model.predict(X_torch).reshape(-1, 1)
+        lr_pred = lr_model.predict(X_torch).reshape(-1, 1)
 
         # Concatenate original + tree + lr predictions
         X_stacked = np.hstack([X, tree_pred, lr_pred])
