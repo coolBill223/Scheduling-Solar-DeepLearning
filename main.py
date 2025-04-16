@@ -1,7 +1,6 @@
 from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string
 import os
 import subprocess
-from flask import request
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder="web/static", template_folder="web")
@@ -10,14 +9,39 @@ app = Flask(__name__, static_folder="web/static", template_folder="web")
 def index():
     return render_template("index.html")
 
+@app.route("/form.html")
+def form_page():
+    # Reserved for future form-based prediction UI
+    return render_template("form.html")
+
+
+@app.route("/train.html")
+def train_page():
+    # New page to upload Excel, trigger training, and view results
+    return render_template("train.html")
+
+
+@app.route("/instructions.html")
+def instructions_page():
+    # Static instructions page
+    return render_template("instructions.html")
+
+@app.route("/index.html") 
+def index_page():
+    return render_template("index.html")
+
 @app.route("/upload", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
         return "No file part", 400
-
+    
     file = request.files["file"]
+    
     if file.filename == "":
         return "No selected file", 400
+    
+    if not file.filename.endswith(".xlsx"):
+        return "Invalid file type. Please upload an Excel (.xlsx) file.", 400
 
     # Ensure target directory exists
     save_dir = os.path.join("data", "raw_data")

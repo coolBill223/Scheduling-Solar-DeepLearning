@@ -1,57 +1,16 @@
-const dropZone = document.getElementById("drop_zone");
-const trainBtn = document.getElementById("train_btn");
-const resultBtn = document.getElementById("result_btn");
-const statusDiv = document.getElementById("status");
+// Handle form submission and display predicted installation time
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("multiStepForm");
+  if (!form) return;
 
-dropZone.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  dropZone.style.borderColor = "#3b82f6";
-});
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
 
-dropZone.addEventListener("dragleave", () => {
-  dropZone.style.borderColor = "#aaa";
-});
+    // Example prediction: you can replace this with real model inference result
+    const predicted = 10;
 
-dropZone.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropZone.style.borderColor = "#aaa";
-
-  const file = e.dataTransfer.files[0];
-  if (!file.name.endsWith(".xlsx")) {
-    alert("Please upload an Excel (.xlsx) file.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-  statusDiv.innerText = "Uploading file...";
-
-  fetch("/upload", {
-    method: "POST",
-    body: formData,
-  })
-    .then((res) => res.text())
-    .then((msg) => {
-      statusDiv.innerText = msg;
-      trainBtn.disabled = false;
-    })
-    .catch((err) => {
-      statusDiv.innerText = "Upload failed: " + err;
-    });
-});
-
-trainBtn.addEventListener("click", () => {
-  statusDiv.innerText = "Training in progress...";
-  fetch("/train")
-    .then((res) => {
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.text();
-  })
-    .then((msg) => {
-    statusDiv.innerText = msg;
-    resultBtn.disabled = false;
-  })
-    .catch((err) => {
-    statusDiv.innerText = "Training failed: " + err;
+    const result = document.getElementById("predictionResult");
+    result.innerText = `This Solar Panel Installation will take ${predicted} to ${predicted + 10} Hours to Complete`;
+    result.style.display = "block";
   });
 });

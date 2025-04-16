@@ -1,58 +1,121 @@
-body {
-  font-family: Arial, sans-serif;
-  background: linear-gradient(270deg, #ff9a9e, #fad0c4, #fad0c4, #fbc2eb, #a18cd1, #fbc2eb, #fad0c4, #ff9a9e);
-  background-size: 1600% 1600%;
-  animation: rainbow 30s ease infinite;
-  margin: 0;
-  padding: 0;
+*{
+  /*margin: 10px;*/
+  padding: 10px;
+  font-family: Quicksand, Helvetica, sans-serif;
+  /*text-align: center;*/
 }
 
-@keyframes rainbow {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+h3{
+  font-family: Quicksand, Helvetica, sans-serif;
+  /*background-color: #c8dff3;*/
+  margin-left: 50px;
+  margin-right: 50px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  /*border-radius: 15px;*/
 }
 
-#drop_zone {
-  width: 320px;
-  height: 160px;
-  border: 2px dashed #aaa;
-  border-radius: 10px;
+h1{
+  font-family: Quicksand, Helvetica, sans-serif;
+  font-size: 60px;
+  /*margin: 50px;*/
+  margin: 0px;
+  padding-left: 100px;
+  padding-right: 100px;
   text-align: center;
-  line-height: 160px;
-  font-size: 16px;
-  color: #555;
-  margin: 30px auto;
-  background: linear-gradient(135deg, #e0e0e0, #f9f9f9);
-  transition: transform 0.2s ease;
+  padding-top: 150px;
+  padding-bottom: 150px;
+  text-decoration: underline;
+  text-underline-offset: 15px;
+  text-decoration-color: #FADC46;
+  text-decoration-thickness: 7px;
+  text-decoration-style: solid;
+
+  /*Adapted from https://stackoverflow.com/questions/12605908/change-background-image-opacity*/
+  background-color: rgba(255,255,255,0.3);
+  background-blend-mode: lighten;
+  background-image: url('SolarPanels.jpg');
 }
 
-#drop_zone:hover {
-  transform: scale(1.05);
+.instructions h3{
+  text-align: left;
+  background-color: #FFFFFF; 
 }
 
-#status {
+h4{
+  margin: 10px;
+  text-align: left;
+}
+
+/*Navigation Bar*/
+.topnav {
+  background-color: #092843;
+  /*overflow: hidden;*/
+  margin: 0px;
+  padding: 10px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.topnav img{
+  padding: 10px;
+  float: left;
+  height: 40px;
+  width: auto;
+}
+
+/* Style the links inside the navigation bar */
+.topnav a {
+  float: left;
+  color: #FFFFFF;
   text-align: center;
-  margin-top: 10px;
+  padding: 14px 16px;
+  text-decoration: none;
+  font-size: 17px;
 }
 
-button {
+.topnav a:hover {
+  background-color: #0f3658;
+  color: #FFFFFF;
+  border-radius: 15px;
+}
+
+.topnav a.active {
+  color: #FFFFFF;
+  background-color: #0f3658;
+}
+
+
+.form-step {
+  display: none;
+}
+
+.form-step.active {
   display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  font-size: 14px;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-button:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
+form{
+  margin: 10px;
+  background-color: #AACFF0;
+}
+
+label{
+  margin: 8px;
+}
+
+input{
+  margin: 8px;
+}
+
+.scheduleForm{
+  margin: 20px;
+  padding: 20px;
+  padding-left: 30%;
+  padding-right: 30%;
+  justify-content: center;
+  align-items: center;
+  border-radius: 15px;
+  width: 400px;
 }

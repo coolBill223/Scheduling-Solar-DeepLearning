@@ -1,15 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Model Training Interface</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <div id="drop_zone">Drop Excel file here</div>
-  <div id="status"></div>
-  <button id="train_btn" disabled>Train</button>
-  <button id="result_btn" disabled onclick="window.location='/train_result_page'">View Results</button>
-  <script src="/static/script.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>My Website</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap" rel="stylesheet">
+    <link rel="icon" type="MSPLogo" href="MSPLogo.avif">
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <div class="topnav">
+      <img src="{{ url_for('static', filename='MSPLogo.avif') }}" height="15px" width="auto">
+      <a href="index.html">Home</a>
+      <a href="train.html">Train Models</a>
+      <a href="form.html">Predict Installation Duration</a>
+      <a href="instructions.html">Instructions</a>
+    </div>
+
+    <main>
+      <br>
+      <h1> Scheduling Solar</h1>  
+
+      <h3>Welcome to Scheduling Solar, a product designed to predict how long solar panel installations will take.</h3>
+      <h3>This product was created for Midwest Solar Power, a company specializing in solar panel installations. Scheduling Solar works by leveraging the power of Genetic Algorithms, a type of machine learning model that learns from historical data to predict how long future installations will take based on a variety of factors.</h3>
+    </main>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
 </html>
