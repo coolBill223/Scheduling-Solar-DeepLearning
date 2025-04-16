@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Train Solar Models</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <div class="topnav">
+      <img src="{{ url_for('static', filename='MSPLogo.avif') }}" height="15px" width="auto" />
+      <a href="index.html">Home</a>
+      <a href="train.html">Train Models</a>
+      <a href="form.html">Predict Installation Duration</a>
+      <a href="instructions.html">Instructions</a>
+    </div>
+
+    <main>
+      <br />
+      <h1>Train Models with Your Data</h1>
+      <h3>Upload an Excel (.xlsx) file to begin training machine learning models.</h3>
+
+      <!-- Upload & Train Section -->
+      <div class="scheduleForm" style="text-align: center;">
+        <input type="file" id="fileInput" accept=".xlsx" /><br /><br />
+        <button id="uploadBtn">Upload File</button>
+        <p id="uploadStatus"></p>
+
+        <button id="trainBtn" style="display: none;">Start Training</button>
+        <p id="trainStatus" style="display: none; color: green; font-weight: bold;"></p>
+
+      </div>
+
+      <!-- Result Section -->
+      <div id="resultArea" style="margin: 40px;">
+        <!-- Training results will be inserted here -->
+      </div>
+    </main>
+
+    <script>
+      const uploadBtn = document.getElementById("uploadBtn");
+      const trainBtn = document.getElementById("trainBtn");
+      const resultArea = document.getElementById("resultArea");
+
+      // Upload Excel file
+      uploadBtn.addEventListener("click", async () => {
+        const fileInput = document.getElementById("fileInput");
+        const uploadStatus = document.getElementById("uploadStatus");
+        const file = fileInput.files[0];
+
+        if (!file) {
+          uploadStatus.textContent = "Please select a file.";
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        uploadStatus.textContent = "Uploading...";
+        const response = await fetch("/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          uploadStatus.textContent = "File uploaded successfully.";
+          trainBtn.style.display = "inline-block";
+        } else {
+          const error = await response.text();
+          uploadStatus.textContent = "Upload failed: " + error;
+        }
+      });
+
+      // Start training
+      trainBtn.addEventListener("click", async () => {
+        const trainStatus = document.getElementById("trainStatus");
+        const resultArea = document.getElementById("resultArea");
+      
+        trainStatus.textContent = "Training in progress...";
+        resultArea.innerHTML = "";
+      
+        try {
+          const response = await fetch("/train");
+          if (!response.ok) throw new Error(await response.text());
+      
+          trainStatus.textContent = "Training complete. Displaying results...";
+      
+          const resultHtml = await fetch("/train_result_page");
+          const text = await resultHtml.text();
+          resultArea.innerHTML = text;
+        } catch (err) {
+          trainStatus.innerHTML = `❌ Training failed: <br>${err}`;
+        }
+      });
+            window.addEventListener("DOMContentLoaded", async () => {
+              try {
+                const response = await fetch("/train_result_page");
+                const html = await response.text();
+                document.getElementById("resultArea").innerHTML = html;
+              } catch (err) {
+                console.warn("Failed to load training results:", err);
+              }
+            });
+
+    </script>
+  </body>
+</html>

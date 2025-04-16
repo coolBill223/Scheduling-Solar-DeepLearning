@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>My Website</title>
+
+    <!-- External stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+
+    <!-- Google font: Quicksand -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="MSPLogo" href="MSPLogo.avif" />
+  </head>
+
+  <body>
+    <!-- Moved navigation bar from <head> to <body> -->
+    <div class="topnav">
+      <img src="{{ url_for('static', filename='MSPLogo.avif') }}" height="15px" width="auto" />
+      <a href="index.html">Home</a>
+      <a href="train.html">Train Models</a>
+      <a href="form.html">Predict Installation Duration</a>
+      <a href="instructions.html">Instructions</a>
+    </div>
+
+    <main>
+      <br />
+      <h1>Predict Installation Duration</h1>
+      <h3> Enter Project Information Below </h3>
+      <br />
+
+      <div class="scheduleForm">
+        <form id="multiStepForm">
+          <!-- Step 1 -->
+          <div class="form-step active">
+
+            <label for="tilt">Tilt:</label><br />
+            <input type="number" id="tilt" name="tilt" step="any" /><br />
+
+            <label for="azimuth">Azimuth:</label><br />
+            <input type="number" id="azimuth" name="azimuth" step="any" /><br />
+
+            <label for="panel_qty">Panel QTY:</label><br />
+            <input type="number" id="panel_qty" name="panel_qty" /><br />
+
+            <label for="system_rating">System Rating (kW DC):</label><br />
+            <input type="number" id="system_rating" name="system_rating" step="any" /><br />
+
+            <label for="inverter_manufacturer">Inverter Manufacturer:</label><br />
+            <input type="text" id="inverter_manufacturer" name="inverter_manufacturer" /><br />
+
+            <label for="array_type">Array Type:</label><br />
+            <input type="text" id="array_type" name="array_type" /><br />
+
+            <button type="button" class="next-btn">Next</button>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="form-step">
+            <label for="squirrel_screen">Squirrel Screen:</label><br />
+            <input type="text" id="squirrel_screen" name="squirrel_screen" /><br />
+
+            <label for="consumption_monitoring">Consumption Monitoring:</label><br />
+            <input type="text" id="consumption_monitoring" name="consumption_monitoring" /><br />
+
+            <label for="truss_rafter">Truss / Rafter:</label><br />
+            <input type="text" id="truss_rafter" name="truss_rafter" /><br />
+
+            <label for="reinforcements">Reinforcements:</label><br />
+            <input type="text" id="reinforcements" name="reinforcements" /><br />
+
+            <label for="interconnection_type">Interconnection Type:</label><br />
+            <input type="text" id="interconnection_type" name="interconnection_type" /><br />
+
+            <label for="module_length">Module Length:</label><br />
+            <input type="number" id="module_length" name="module_length" step="any" /><br />
+
+            <label for="module_width">Module Width:</label><br />
+            <input type="number" id="module_width" name="module_width"  step="any"/><br />
+
+            <label for="module_weight">Module Weight:</label><br />
+            <input type="number" id="module_weight" name="module_weight" step="any" /><br />
+            <button type="button" class="prev-btn">Previous</button>
+            <button type="button" class="next-btn">Next</button>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="form-step">
+            <label for="num_arrays"># of Arrays:</label><br />
+            <input type="number" id="num_arrays" name="num_arrays" /><br />
+
+            <label for="num_circuits"># of Circuits:</label><br />
+            <input type="number" id="num_circuits" name="num_circuits" /><br />
+
+            <label for="num_reinforcement"># of Reinforcement:</label><br />
+            <input type="number" id="num_reinforcement" name="num_reinforcement" /><br />
+
+            <label for="roof_type">Roof Type:</label><br />
+            <input type="text" id="roof_type" name="roof_type" /><br />
+
+            <label for="attachment_type">Attachment Type:</label><br />
+            <input type="text" id="attachment_type" name="attachment_type" /><br />
+
+            <label for="orientation">Portrait / Landscape:</label><br />
+            <input type="text" id="orientation" name="orientation" /><br />
+
+            <label for="num_stories"># of Stories:</label><br />
+            <input type="number" id="num_stories" name="num_stories" /><br />
+
+            <label for="install_season">Install Season:</label><br />
+            <input type="text" id="install_season" name="install_season" /><br />
+
+            <label for="num_employees">Total # Hourly Employees on Site:</label><br />
+            <input type="number" id="num_employees" name="num_employees" /><br />
+
+            <label for="model">Select Model:</label><br />
+            <select id="model" name="model">
+              <option value="mlp">TinyMLP</option>
+              <option value="tree">Tree</option>
+              <option value="lr">Linear Regression</option>
+            </select><br /><br />
+            <button type="button" class="prev-btn">Previous</button>
+            <button type="submit">Submit</button>
+            <p id="predictionResult" style="display: none;"></p>
+          </div>
+        </form>
+      </div>
+
+      <!-- Prediction result will be shown here -->
+      <h3 id="predictionResult" style="display: none;"></h3>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+      // Store all form step sections
+      const steps = document.querySelectorAll(".form-step");
+      const nextBtns = document.querySelectorAll(".next-btn");
+      const prevBtns = document.querySelectorAll(".prev-btn");
+      let currentStep = 0;
+
+      // Show the current step, hide others
+      function showStep(index) {
+        steps.forEach((step, i) => {
+          step.classList.toggle("active", i === index);
+        });
+      }
+
+      // Handle clicking "Next"
+      nextBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (currentStep < steps.length - 1) {
+            currentStep++;
+            showStep(currentStep);
+          }
+        });
+      });
+
+      // Handle clicking "Previous"
+      prevBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (currentStep > 0) {
+            currentStep--;
+            showStep(currentStep);
+          }
+        });
+      });
+
+      // Handle form submission
+      document.getElementById("multiStepForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const result = document.getElementById("predictionResult");
+        result.innerText = "Predicting...";
+      
+        const formData = {
+          tilt: parseFloat(document.getElementById("tilt").value),
+          azimuth: parseFloat(document.getElementById("azimuth").value),
+          panel_qty: parseFloat(document.getElementById("panel_qty").value),
+          system_rating: parseFloat(document.getElementById("system_rating").value),
+          inverter_manufacturer: document.getElementById("inverter_manufacturer").value,
+          array_type: document.getElementById("array_type").value,
+      
+          squirrel_screen: document.getElementById("squirrel_screen").value,
+          consumption_monitoring: document.getElementById("consumption_monitoring").value,
+          truss_rafter: document.getElementById("truss_rafter").value,
+          reinforcements: parseInt(document.getElementById("reinforcements").value),
+          interconnection_type: document.getElementById("interconnection_type").value,
+          module_length: parseFloat(document.getElementById("module_length").value),
+          module_width: parseFloat(document.getElementById("module_width").value),
+          module_weight: parseFloat(document.getElementById("module_weight").value),
+      
+          num_arrays: parseInt(document.getElementById("num_arrays").value),
+          num_circuits: parseInt(document.getElementById("num_circuits").value),
+          num_reinforcement: parseInt(document.getElementById("num_reinforcement").value),
+          roof_type: document.getElementById("roof_type").value,
+          attachment_type: document.getElementById("attachment_type").value,
+          orientation: document.getElementById("orientation").value,
+          num_stories: parseInt(document.getElementById("num_stories").value),
+          install_season: document.getElementById("install_season").value,
+          num_employees: parseInt(document.getElementById("num_employees").value),
+      
+          model: document.getElementById("model").value
+        };
+      
+        try {
+          const res = await fetch("/predict", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+      
+          const data = await res.json();
+      
+          if (res.ok) {
+            result.innerText = `Predicted Work Duration: ${data.prediction.toFixed(2)} minutes`;
+
+          } else {
+            result.innerText = "Prediction failed: " + data.error;
+          }
+        } catch (err) {
+          result.innerText = "Error: " + err.message;
+        }
+      
+        result.style.display = "block";
+      });
+      
+    
+      showStep(currentStep);
+    </script>
+
+    <!-- External JS file (optional) -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>

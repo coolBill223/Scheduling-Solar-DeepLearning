@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>My Website</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap" rel="stylesheet">
+    <link rel="icon" type="MSPLogo" href="MSPLogo.avif">
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <div class="topnav">
+      <img src="{{ url_for('static', filename='MSPLogo.avif') }}" height="15px" width="auto">
+      <a href="index.html">Home</a>
+      <a href="train.html">Train Models</a>
+      <a href="form.html">Predict Installation Duration</a>
+      <a href="instructions.html">Instructions</a>
+    </div>
+
+    <main>
+      <br>
+      <h1> How to Predict Installation Durations</h1>  
+
+      <h3> Instructions</h3>
+
+      <div class="instructions">
+        <h3>Step 1) Gather all known data about the installation, including the specifics of where the panels will be installed, the type of solar panels, the number of employees on site, and the season.</h3>
+        <h3>Step 2) Input this data into the form, which can be found under the "Predict Installation Duration" tab on this website.</h3>
+        <h3>Step 3) Submit the form, and you will receive a prediction of how long this installation will take.</h3>
+      </div>
+
+      <h3> Now you can easily schedule solar panel installations!</h3>
+    </main>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>
