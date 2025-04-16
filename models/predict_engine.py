@@ -17,10 +17,11 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         float: predicted installation time (in hours)
     """
     print("[DEBUG] Running updated predict_engine with stacking")
-    
-    # Convert input to NumPy array
-    X = np.array(feature_vector).reshape(1, -1)
+    X_scaler = joblib.load("checkpoints/X_scaler.pkl") 
 
+    # Convert input to NumPy array
+    X_raw = np.array(feature_vector).reshape(1, -1)
+    X_std = X_scaler.transform(X_raw)
     # Load scaler to inverse prediction
     y_scaler = joblib.load("checkpoints/y_scaler.pkl")
 
@@ -30,12 +31,12 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         lr_model = joblib.load("checkpoints/lr_model.pkl")
 
         # Predict tree & lr outputs
-        X_torch = torch.from_numpy(X.astype(np.float32))
+        X_torch = torch.from_numpy(X_std.astype(np.float32))
         tree_pred = tree_model.predict(X_torch).reshape(-1, 1)
         lr_pred = lr_model.predict(X_torch).reshape(-1, 1)
 
         # Concatenate original + tree + lr predictions
-        X_stacked = np.hstack([X, tree_pred, lr_pred])
+        X_stacked = np.hstack([X_std, tree_pred, lr_pred])
         print("[DEBUG] X_stacked type:", type(X_stacked))
         print("[DEBUG] X_stacked shape:", X_stacked.shape)
 
@@ -56,11 +57,11 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
     elif model_name == "tree":
         model = joblib.load("checkpoints/tree_model.pkl")
-        y_pred = model.predict(X)
+        y_pred = model.predict(X_std)
 
     elif model_name == "lr":
         model = joblib.load("checkpoints/lr_model.pkl")
-        y_pred = model.predict(X)
+        y_pred = model.predict(X_std)
 
     else:
         raise ValueError(f"Unknown model: {model_name}")
