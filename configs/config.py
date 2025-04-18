@@ -1,4 +1,4 @@
-# 配置文件
+# Config
 class Config:
     DATA_PATH = "data/raw_data/Data.xlsx"
     BATCH_SIZE = 32

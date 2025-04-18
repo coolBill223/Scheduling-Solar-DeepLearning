@@ -54,10 +54,18 @@
             <input type="number" id="system_rating" name="system_rating" step="any" /><br />
 
             <label for="inverter_manufacturer">Inverter Manufacturer:</label><br />
-            <input type="text" id="inverter_manufacturer" name="inverter_manufacturer" /><br />
+            <select id="inverter_manufacturer" name="inverter_manufacturer">
+              {% for opt in mappings["Inverter Manufacturer"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="array_type">Array Type:</label><br />
-            <input type="text" id="array_type" name="array_type" /><br />
+            <select id="array_type" name="array_type">
+              {% for opt in mappings["Array Type"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <button type="button" class="next-btn">Next</button>
           </div>
@@ -65,19 +73,40 @@
           <!-- Step 2 -->
           <div class="form-step">
             <label for="squirrel_screen">Squirrel Screen:</label><br />
-            <input type="text" id="squirrel_screen" name="squirrel_screen" /><br />
+            <select id="squirrel_screen" name="squirrel_screen">
+              {% for opt in mappings["Squirrel Screen"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="consumption_monitoring">Consumption Monitoring:</label><br />
-            <input type="text" id="consumption_monitoring" name="consumption_monitoring" /><br />
+            <select id="consumption_monitoring" name="consumption_monitoring">
+              {% for opt in mappings["Consumption Monitoring"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="truss_rafter">Truss / Rafter:</label><br />
-            <input type="text" id="truss_rafter" name="truss_rafter" /><br />
-
+            <select id="truss_rafter" name="truss_rafter">
+              {% for opt in mappings["Truss / Rafter"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
+            
             <label for="reinforcements">Reinforcements:</label><br />
-            <input type="text" id="reinforcements" name="reinforcements" /><br />
+            <select id="reinforcements" name="reinforcements">
+              {% for opt in mappings["Reinforcements"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
+
 
             <label for="interconnection_type">Interconnection Type:</label><br />
-            <input type="text" id="interconnection_type" name="interconnection_type" /><br />
+            <select id="interconnection_type" name="interconnection_type">
+              {% for opt in mappings["Interconnection Type"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="module_length">Module Length:</label><br />
             <input type="number" id="module_length" name="module_length" step="any" /><br />
@@ -103,19 +132,35 @@
             <input type="number" id="num_reinforcement" name="num_reinforcement" /><br />
 
             <label for="roof_type">Roof Type:</label><br />
-            <input type="text" id="roof_type" name="roof_type" /><br />
+            <select id="roof_type" name="roof_type">
+              {% for opt in mappings["Roof Type"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="attachment_type">Attachment Type:</label><br />
-            <input type="text" id="attachment_type" name="attachment_type" /><br />
+            <select id="attachment_type" name="attachment_type">
+              {% for opt in mappings["Attachment Type"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="orientation">Portrait / Landscape:</label><br />
-            <input type="text" id="orientation" name="orientation" /><br />
+            <select id="orientation" name="orientation">
+              {% for opt in mappings["Portrait / Landscape"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="num_stories"># of Stories:</label><br />
             <input type="number" id="num_stories" name="num_stories" /><br />
 
             <label for="install_season">Install Season:</label><br />
-            <input type="text" id="install_season" name="install_season" /><br />
+            <select id="install_season" name="install_season">
+              {% for opt in mappings["Install Season"] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select><br />
 
             <label for="num_employees">Total # Hourly Employees on Site:</label><br />
             <input type="number" id="num_employees" name="num_employees" /><br />
@@ -139,104 +184,155 @@
 
     <!-- JavaScript Logic -->
     <script>
-      // Store all form step sections
-      const steps = document.querySelectorAll(".form-step");
-      const nextBtns = document.querySelectorAll(".next-btn");
-      const prevBtns = document.querySelectorAll(".prev-btn");
-      let currentStep = 0;
-
-      // Show the current step, hide others
-      function showStep(index) {
-        steps.forEach((step, i) => {
-          step.classList.toggle("active", i === index);
-        });
-      }
-
-      // Handle clicking "Next"
-      nextBtns.forEach((btn) => {
-        btn.addEventListener("click", () => {
+      window.onload = function () {
+        const form = document.getElementById("multiStepForm");
+        const steps = document.querySelectorAll(".form-step");
+        let currentStep = 0;
+      
+        function showStep(step) {
+          steps.forEach((s, i) => s.classList.toggle("active", i === step));
+        }
+      
+        function nextStep() {
           if (currentStep < steps.length - 1) {
             currentStep++;
             showStep(currentStep);
           }
-        });
-      });
-
-      // Handle clicking "Previous"
-      prevBtns.forEach((btn) => {
-        btn.addEventListener("click", () => {
+        }
+      
+        function prevStep() {
           if (currentStep > 0) {
             currentStep--;
             showStep(currentStep);
           }
-        });
-      });
-
-      // Handle form submission
-      document.getElementById("multiStepForm").addEventListener("submit", async function (e) {
-        e.preventDefault();
-        const result = document.getElementById("predictionResult");
-        result.innerText = "Predicting...";
-      
-        const formData = {
-          tilt: parseFloat(document.getElementById("tilt").value),
-          azimuth: parseFloat(document.getElementById("azimuth").value),
-          panel_qty: parseFloat(document.getElementById("panel_qty").value),
-          system_rating: parseFloat(document.getElementById("system_rating").value),
-          inverter_manufacturer: document.getElementById("inverter_manufacturer").value,
-          array_type: document.getElementById("array_type").value,
-      
-          squirrel_screen: document.getElementById("squirrel_screen").value,
-          consumption_monitoring: document.getElementById("consumption_monitoring").value,
-          truss_rafter: document.getElementById("truss_rafter").value,
-          reinforcements: parseInt(document.getElementById("reinforcements").value),
-          interconnection_type: document.getElementById("interconnection_type").value,
-          module_length: parseFloat(document.getElementById("module_length").value),
-          module_width: parseFloat(document.getElementById("module_width").value),
-          module_weight: parseFloat(document.getElementById("module_weight").value),
-      
-          num_arrays: parseInt(document.getElementById("num_arrays").value),
-          num_circuits: parseInt(document.getElementById("num_circuits").value),
-          num_reinforcement: parseInt(document.getElementById("num_reinforcement").value),
-          roof_type: document.getElementById("roof_type").value,
-          attachment_type: document.getElementById("attachment_type").value,
-          orientation: document.getElementById("orientation").value,
-          num_stories: parseInt(document.getElementById("num_stories").value),
-          install_season: document.getElementById("install_season").value,
-          num_employees: parseInt(document.getElementById("num_employees").value),
-      
-          model: document.getElementById("model").value
-        };
-      
-        try {
-          const res = await fetch("/predict", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(formData),
-          });
-      
-          const data = await res.json();
-      
-          if (res.ok) {
-            result.innerText = `Predicted Work Duration: ${data.prediction.toFixed(2)} minutes`;
-
-          } else {
-            result.innerText = "Prediction failed: " + data.error;
-          }
-        } catch (err) {
-          result.innerText = "Error: " + err.message;
         }
       
-        result.style.display = "block";
-      });
+        document.querySelectorAll(".next-btn").forEach((btn) => {
+          btn.addEventListener("click", nextStep);
+        });
+        document.querySelectorAll(".prev-btn").forEach((btn) => {
+          btn.addEventListener("click", prevStep);
+        });
       
-    
-      showStep(currentStep);
-    </script>
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+      
+          const formData = {
+            tilt: parseFloat(document.getElementById("tilt").value),
+            azimuth: parseFloat(document.getElementById("azimuth").value),
+            panel_qty: document.getElementById("panel_qty").value,
+            system_rating: document.getElementById("system_rating").value,
+            inverter_manufacturer: document.getElementById("inverter_manufacturer").value,
+            array_type: document.getElementById("array_type").value,
+            squirrel_screen: document.getElementById("squirrel_screen").value,
+            consumption_monitoring: document.getElementById("consumption_monitoring").value,
+            truss_rafter: document.getElementById("truss_rafter").value,
+            reinforcements: document.getElementById("reinforcements").value,
+            interconnection_type: document.getElementById("interconnection_type").value,
+            module_length: parseFloat(document.getElementById("module_length").value),
+            module_width: parseFloat(document.getElementById("module_width").value),
+            module_weight: parseFloat(document.getElementById("module_weight").value),
+            num_arrays: parseInt(document.getElementById("num_arrays").value),
+            num_circuits: parseInt(document.getElementById("num_circuits").value),
+            num_reinforcement: parseInt(document.getElementById("num_reinforcement").value),
+            roof_type: document.getElementById("roof_type").value,
+            attachment_type: document.getElementById("attachment_type").value,
+            orientation: document.getElementById("orientation").value,
+            num_stories: parseInt(document.getElementById("num_stories").value),
+            install_season: document.getElementById("install_season").value,
+            num_employees: parseInt(document.getElementById("num_employees").value),
+            model: document.getElementById("model").value,
+          };
+      
+          const featureNameMap = {
+            tilt: "Tilt",
+            azimuth: "Azimuth",
+            panel_qty: "Panel QTY",
+            system_rating: "System Rating (kW DC)",
+            inverter_manufacturer: "Inverter Manufacturer",
+            array_type: "Array Type",
+            squirrel_screen: "Squirrel Screen",
+            consumption_monitoring: "Consumption Monitoring",
+            truss_rafter: "Truss / Rafter",
+            reinforcements: "Reinforcements",
+            interconnection_type: "Interconnection Type",
+            module_length: "Module Length",
+            module_width: "Module Width",
+            module_weight: "Module Weight",
+            num_arrays: "# of Arrays",
+            num_circuits: "# of circuits",
+            num_reinforcement: "# of reinforcement",
+            roof_type: "Roof Type",
+            attachment_type: "Attachment Type",
+            orientation: "Portrait / Landscape",
+            num_stories: "# of Stories",
+            install_season: "Install Season",
+            num_employees: "Total # Hourly Empoyees on Site",
+          };
+      
+          const featureOrder = [
+            "Tilt", "Azimuth", "Panel QTY", "System Rating (kW DC)",
+            "Inverter Manufacturer", "Array Type", "Squirrel Screen",
+            "Consumption Monitoring", "Truss / Rafter", "Reinforcements",
+            "Interconnection Type", "Module Length", "Module Width", "Module Weight",
+            "# of Arrays", "# of circuits", "# of reinforcement", "Roof Type",
+            "Attachment Type", "Portrait / Landscape", "# of Stories", "Install Season",
+            "Total # Hourly Empoyees on Site"
+          ];
 
-    <!-- External JS file (optional) -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+          const mappedFormData = {
+            "Tilt": formData.tilt,
+            "Azimuth": formData.azimuth,
+            "Panel QTY": formData.panel_qty,
+            "System Rating (kW DC)": formData.system_rating,
+            "Inverter Manufacturer": formData.inverter_manufacturer,
+            "Array Type": formData.array_type,
+            "Squirrel Screen": formData.squirrel_screen,
+            "Consumption Monitoring": formData.consumption_monitoring,
+            "Truss / Rafter": formData.truss_rafter,
+            "Reinforcements": formData.reinforcements,
+            "Interconnection Type": formData.interconnection_type,
+            "Module Length": formData.module_length,
+            "Module Width": formData.module_width,
+            "Module Weight": formData.module_weight,
+            "# of Arrays": formData.num_arrays,
+            "# of circuits": formData.num_circuits,
+            "# of reinforcement": formData.num_reinforcement,
+            "Roof Type": formData.roof_type,
+            "Attachment Type": formData.attachment_type,
+            "Portrait / Landscape": formData.orientation,
+            "# of Stories": formData.num_stories,
+            "Install Season": formData.install_season,
+            "Total # Hourly Empoyees on Site": formData.num_employees,
+          };
+          
+      
+          const feature_vector = featureOrder.map(name => mappedFormData[name]);
+      
+          console.log("✅ Sending feature_vector:", feature_vector);
+      
+          fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: formData.model,
+              feature_vector: feature_vector
+            }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              document.getElementById("predictionResult").style.display = "block";
+              document.getElementById("predictionResult").innerText =
+                  "Predicted Time: " + data.prediction + " minutes";
+
+            })
+            .catch((err) => {
+              console.error("❌ Prediction error:", err);
+              document.getElementById("result").innerText = "Prediction failed.";
+            });
+        });
+      };
+      </script>
+      
   </body>
 </html>

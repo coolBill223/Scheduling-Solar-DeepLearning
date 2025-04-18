@@ -5,7 +5,7 @@ import torch
 import re
 import datetime
 from sklearn.preprocessing import StandardScaler
-
+import json
 # ----------------------------------------------------------
 # Utility Functions
 # ----------------------------------------------------------
@@ -142,7 +142,7 @@ def load_data(file_path=None):
     # ---------------- Resolve path ----------------
     if file_path is None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_dir, "..", "raw_data", "uploaded_data.xlsx")
+        file_path = os.path.join(base_dir, "..", "raw_data", "Data.xlsx")
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Excel file not found: {file_path}")
@@ -174,15 +174,31 @@ def load_data(file_path=None):
 
     df[target] = df.apply(lambda r: parse_install_time(r, target, days_col), axis=1)
 
+    # Rename broken "Reinforce-  ments" column to standard "Reinforcements"
+    df.rename(columns={"Reinforce-  ments": "Reinforcements"}, inplace=True)
+
     # Process Drive Time if present
     if "Drive Time" in df.columns:
         drive = df["Drive Time"].apply(convert_time_to_minutes).fillna(0)
+        df["__debug_target_before_drive_sub"] = df[target]
         df[target] = df[target] - drive
-
+    
     # Clip negatives and apply √‑transform (stabilise variance)
-    df[target] = df[target].clip(lower=0)
-    df[target] = np.sqrt(df[target])
+    df[target] = df[target].clip(lower=1e-6)
+    df[target] = np.log1p(df[target]) 
 
+    # Optional: export full target processing info to Excel
+    debug_df = pd.DataFrame({
+        "Raw Target Value": df["__debug_target_before_drive_sub"] if "__debug_target_before_drive_sub" in df else df[target],
+        "Days on Site": df[days_col],
+        "Drive Time (mins)": drive if "Drive Time" in df else np.nan,
+        "Target (mins, after Drive)": np.exp(df[target]),  # reverse sqrt
+        "Target (after sqrt)": df[target]
+    })
+    debug_df.to_excel("checkpoints/target_debug_output.xlsx", index=False)
+    print(" Full target transformation output saved to checkpoints/target_debug_output.xlsx")
+
+    
     # Drop rows where target still missing
     df.dropna(subset=[target], inplace=True)
 
@@ -192,23 +208,31 @@ def load_data(file_path=None):
     if "Azimuth" in df.columns:
         df["Azimuth"] = df["Azimuth"].apply(clean_angle)
 
-    # yes/no → 1/0
-    bool_cols = [c for c in df.columns if df[c].dropna().astype(str).str.lower().isin(["yes", "no"]).all()]
-    for c in bool_cols:
-        df[c] = df[c].map({"yes": 1, "no": 0, "Yes": 1, "No": 0})
 
-    # Label‑encode remaining categoricals
-    cat_cols = df.select_dtypes(exclude=["number"]).columns.difference(bool_cols + [target])
+
+    binary_fields = ["Squirrel Screen", "Consumption Monitoring", "Reinforcements"]
+    for field in binary_fields:
+        if field in df.columns:
+            df[field] = df[field].apply(lambda x: "Yes" if str(x).lower() in ["1", "yes", "true"] else "No")
+    
+    # Label‑encode remaining categoricals 
+    cat_cols = df.select_dtypes(exclude=["number"]).columns.difference([target])
+   
+    category_mappings = {}
+
     for c in cat_cols:
-        df[c] = df[c].astype(str).factorize()[0] + 1
-
+        labels, uniques = pd.factorize(df[c].astype(str))
+        df[c] = labels + 1
+        category_mappings[c] = list(uniques.astype(str))
+        
     # Exclude obviously non‑predictive / leakage columns
     exclude = [
         "Project ID", "Notes", "Total # of Days on Site", "Estimated # of Salaried Employees on Site",
         "Estimated Salary Hours", "Estimated Total Direct Time", "Estimated Total # of People on Site",
         "Drive Time"
     ]
-    features = [c for c in df.columns if c not in exclude + [target]]
+    features = [c for c in df.columns if c not in exclude + [target, "__debug_target_before_drive_sub"]]
+
 
     # Ensure numeric & fill NaNs with zero before scaling
     df[features] = df[features].apply(pd.to_numeric, errors="coerce").fillna(0)
@@ -224,14 +248,18 @@ def load_data(file_path=None):
     X_tensor = torch.tensor(df[features].values, dtype=torch.float32)
     y_tensor = torch.tensor(y, dtype=torch.float32)
 
+
     from sklearn.model_selection import train_test_split
     X_train, X_val, y_train, y_val = train_test_split(
         X_tensor, y_tensor, test_size=0.2, random_state=42
     )
 
-    return X_train, X_val, y_train, y_val, y_scaler
+    with open("checkpoints/category_mappings.json", "w", encoding="utf-8") as f:
+        json.dump(category_mappings, f, ensure_ascii=False, indent=2)
+
+    return X_train, X_val, y_train, y_val, y_scaler, X_scaler
 
 
 if __name__ == "__main__":
-    X_train, X_val, y_train, y_val, y_scaler = load_data()
-    print("✔ Data loader ran successfully. Train shape:", X_train.shape)
+    X_train, X_val, y_train, y_val, y_scaler, X_Scaler = load_data()
+    print(" Data loader ran successfully. Train shape:", X_train.shape)

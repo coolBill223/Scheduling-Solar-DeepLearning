@@ -1,8 +1,9 @@
 from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string, redirect,jsonify
 import os
 import subprocess
+import importlib
 from werkzeug.utils import secure_filename
-from models.predict_engine import predict_with_model
+
 app = Flask(__name__, static_folder="web/static", template_folder="web")
 
 @app.route("/")
@@ -11,8 +12,15 @@ def index():
 
 @app.route("/form.html")
 def form_page():
-    # Reserved for future form-based prediction UI
-    return render_template("form.html")
+    import json
+    try:
+        with open("checkpoints/category_mappings.json", encoding="utf-8") as f:
+            mappings = json.load(f)
+    except:
+        mappings = {}
+
+    return render_template("form.html", mappings=mappings)
+
 
 
 @app.route("/train.html")
@@ -106,24 +114,27 @@ def train_result_page():
     """
     return render_template_string(html)
 
-@app.route("/predict", methods=["GET","POST"])
+@app.route("/predict", methods=["POST"])
 def predict():
+    if not os.path.exists("checkpoints/category_mappings.json"):
+        return jsonify({"error": "Model not trained yet. Please train first."}), 400
+    
+    from models.predict_engine import predict_with_model
+    
     try:
         data = request.get_json()
         model_type = data.get("model")
 
-        selected_features = [
+        if "feature_vector" in data:
+            features = data["feature_vector"]
+        else:
+            selected_features = [
             "tilt", "azimuth", "panel_qty", "system_rating", "inverter_manufacturer", "array_type",
             "squirrel_screen", "consumption_monitoring", "truss_rafter", "reinforcements", "interconnection_type",
             "module_length", "module_width", "module_weight", "num_arrays", "num_circuits", "num_reinforcement",
             "roof_type", "attachment_type", "orientation", "num_stories", "install_season", "num_employees"
-        ] 
-        features = []
-        for key in selected_features:
-            try:
-                features.append(float(data.get(key, 0)))
-            except:
-                features.append(0.0)
+            ] 
+            features = [float(data.get(k,0)) for k in selected_features]
 
         prediction = predict_with_model(model_type, features)
         return jsonify({"prediction": prediction})
