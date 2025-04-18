@@ -21,7 +21,5 @@ dist/
 # Dataset uploads
 data/raw_data/*.xlsx
 
-# Checkpoints
-checkpoints/
 
 models/__pycache__/
