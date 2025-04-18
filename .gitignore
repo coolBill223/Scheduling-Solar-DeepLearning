@@ -1,53 +1,31 @@
-# =========================
-# Python / VSCode Settings
-# =========================
+# === Python cache ===
 __pycache__/
 *.py[cod]
-.vscode/
-*.log
 
-# =========================
-# Virtual Environment
-# =========================
+# === Virtual environments ===
 .venv/
-env/
 venv/
+env/
 
-# =========================
-# Build Artifacts (PyInstaller / setup)
-# =========================
+# === VSCode settings ===
+.vscode/
+
+# === Build artifacts ===
 build/
 dist/
 *.spec
 
-# =========================
-# Notebook Checkpoints
-# =========================
-.ipynb_checkpoints/
-*.ipynb
+# === Logs ===
+*.log
 
-# =========================
-# Dataset uploads (raw only)
-# =========================
+# === Uploaded training data (exclude raw Excel files) ===
 data/raw_data/*.xlsx
+data/raw_data/*.xls
 
-# DO NOT ignore processed/cleaned data or final models
-
-# =========================
-# Model training outputs to KEEP
-# =========================
-# (These will be tracked by Git and pushed to GitHub)
-# checkpoints/*.pth
-# checkpoints/*.txt
-# checkpoints/*.png
-
-# =========================
-# Ignore cache in model folders
-# =========================
+# === Model cache ===
 models/__pycache__/
+checkpoints/__pycache__/
 
-# =========================
-# OS/IDE temp files
-# =========================
-.DS_Store
-Thumbs.db
+# === Temporary or debug files ===
+*.tmp
+*.bak
