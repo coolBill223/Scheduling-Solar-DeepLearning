@@ -1,6 +1,9 @@
-torch
-torchvision
-pandas
+Flask>=2.2
 numpy
+pandas
 scikit-learn
+torch
+matplotlib
+seaborn
 openpyxl
+joblib
