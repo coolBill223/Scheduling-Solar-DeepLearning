@@ -125,6 +125,8 @@ def train_result_page():
     {render_metrics("mlp", "TinyMLP (Neural Networks)")}
     {render_metrics("tree", "Tree")}
     {render_metrics("lr", "Regression")}
+    {render_metrics("ga", "Genetic Algorithm")}
+
     """
     return render_template_string(html)
 

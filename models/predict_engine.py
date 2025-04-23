@@ -123,6 +123,24 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
 
+    elif model_name == "ga":
+        scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "ga_scaler.pkl"))
+        weights = np.loadtxt(os.path.join(BASE_DIR, "checkpoints", "best_weights_ga.csv"), delimiter=',', skiprows=1, usecols=1)
+        
+        incoming = np.array(feature_vector).reshape(1, -1)
+        X_std = scaler.transform(incoming)
+
+        y_pred = X_std @ weights.reshape(-1, 1)
+
+        bias_path = os.path.join(BASE_DIR, "checkpoints", "ga_bias.txt")
+        if os.path.exists(bias_path):
+            with open(bias_path) as f:
+                bias = float(f.read().strip())
+                y_pred += bias
+
+        return float(np.clip(y_pred.flatten()[0], 0, None))
+
+    
     else:
         raise ValueError(f"Unknown model: {model_name}")
 

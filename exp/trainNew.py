@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from models.solar_time_model_tiny import TinyMLP
 from models.solar_tree_model import SklearnTreeWrapper
 from models.solar_lr_model import SklearnLRWrapper
+from models.solar_ga_model import train_ga_model
 from data.datasets.data_loader_new import load_data
 import joblib
 from sklearn.preprocessing import StandardScaler
@@ -239,7 +240,12 @@ def train_stacked_model():
 
     print("Training complete.")
 
-    
+def train_all_models():
+    train_stacked_model() 
+    print("[GA] Training started")
+    train_ga_model(output_dir=CHECKPOINT_DIR)
+    print("[GA] Training complete")
+
     
 if __name__ == "__main__":
-    train_stacked_model()
+    train_all_models()
