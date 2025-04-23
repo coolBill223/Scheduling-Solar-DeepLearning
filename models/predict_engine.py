@@ -7,7 +7,7 @@ import sys
 import os
 import random
 import json
-BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 torch.manual_seed(42)
 np.random.seed(42)
