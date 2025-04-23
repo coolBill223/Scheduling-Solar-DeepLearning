@@ -3,8 +3,17 @@ import os
 import subprocess
 import importlib
 from werkzeug.utils import secure_filename
+import sys
+import json
 
-app = Flask(__name__, static_folder="web/static", template_folder="web")
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, "web", "static"),
+    template_folder=os.path.join(BASE_DIR, "web")
+)
+
 
 @app.route("/")
 def index():
@@ -14,7 +23,7 @@ def index():
 def form_page():
     import json
     try:
-        with open("checkpoints/category_mappings.json", encoding="utf-8") as f:
+        with open(os.path.join(BASE_DIR, "checkpoints", "category_mappings.json"), encoding="utf-8") as f:
             mappings = json.load(f)
     except:
         mappings = {}
@@ -42,56 +51,61 @@ def index_page():
 def upload_file():
     file = request.files.get("file")
     if file and file.filename.endswith(".xlsx"):
-        file_path = os.path.join("data", "raw_data", "Data.xlsx")
+        upload_dir = os.path.join(BASE_DIR, "data", "raw_data")
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, "Data.xlsx")
         file.save(file_path)
-        subprocess.run(["python", "exp/trainNew.py"])
-
-        
-        return redirect("/train.html?status=success")
-    return redirect("/train.html?status=fail")
+        return "Upload complete", 200
+    return "Upload failed", 400
 
 
 
 @app.route("/train")
 def train_model():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     train_script = os.path.join(BASE_DIR, "exp", "trainNew.py")
     result = subprocess.run(
-        ["python", train_script],
+        [sys.executable, train_script],
         capture_output=True,
         text=True,
         check=False
     )
 
     if result.returncode == 0:
-        return "Training completed."
+        return "Training completed.", 200
     else:
         return f"<h3>Training failed.</h3><pre>{result.stderr}</pre>", 500
-
 
 
 @app.route("/loss_curve")
 def loss_curve_img():
     # Serve the loss curve image from checkpoints
-    return send_file("checkpoints/loss_curve.png", mimetype="image/png")
+    img_path = os.path.join(BASE_DIR, "checkpoints", "loss_curve.png")
+    return send_file(img_path, mimetype="image/png")
 
 @app.route("/pred_vs_actual")
 def pred_img():
     # Serve the prediction vs actual plot from checkpoints
-    return send_file("checkpoints/pred_vs_actual.png", mimetype="image/png")
+    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual.png")
+    if not os.path.exists(img_path):
+        return "Prediction image not found. Please train the model first.", 404
+    return send_file(img_path, mimetype="image/png")
+
 
 @app.route("/pred_vs_actual_tree")
 def pred_img_tree():
-    return send_file("checkpoints/pred_vs_actual_tree.png", mimetype="image/png")
+    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_tree.png")
+    return send_file(img_path, mimetype="image/png")
 
 @app.route("/pred_vs_actual_lr")
 def pred_img_lr():
-    return send_file("checkpoints/pred_vs_actual_lr.png", mimetype="image/png")
+    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_lr.png")
+    return send_file(img_path, mimetype="image/png")
+    
 
 @app.route("/train_result_page")
 def train_result_page():
     def render_metrics(name, pretty_name):
-        metrics_path = f"checkpoints/metrics_{name}.txt" if name != "mlp" else "checkpoints/metrics.txt"
+        metrics_path = os.path.join(BASE_DIR, f"checkpoints/metrics_{name}.txt") if name != "mlp" else os.path.join(BASE_DIR, "checkpoints", "metrics.txt")
         image_path = f"/pred_vs_actual_{name}" if name != "mlp" else "/pred_vs_actual"
 
         try:
@@ -116,7 +130,8 @@ def train_result_page():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    if not os.path.exists("checkpoints/category_mappings.json"):
+    mapping_path = os.path.join(BASE_DIR, "checkpoints", "category_mappings.json")
+    if not os.path.exists(mapping_path):
         return jsonify({"error": "Model not trained yet. Please train first."}), 400
     
     from models.predict_engine import predict_with_model

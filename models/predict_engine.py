@@ -7,7 +7,7 @@ import sys
 import os
 import random
 import json
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -16,7 +16,7 @@ torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-with open("checkpoints/category_mappings.json") as f:
+with open(os.path.join(BASE_DIR, "checkpoints", "category_mappings.json")) as f:
     category_mappings = json.load(f)
 
 def map_category_value(col_name, val):
@@ -56,7 +56,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     print("[DEBUG] Running updated predict_engine with stacking")
     print("[DEBUG] feature_vector =", feature_vector)
 
-    X_scaler = joblib.load("checkpoints/X_scaler.pkl") 
+    X_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "X_scaler.pkl")) 
 
     import json
     print("Scaler expects:", X_scaler.n_features_in_)          # 24
@@ -76,12 +76,12 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     X_raw = np.array(feature_vector).reshape(1, -1)
     X_std = X_scaler.transform(incoming)
     # Load scaler to inverse prediction
-    y_scaler = joblib.load("checkpoints/y_scaler.pkl")
+    y_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "y_scaler.pkl"))
 
     if model_name == "mlp":
         # Load stacking base models
-        tree_model = joblib.load("checkpoints/tree_model.pkl")
-        lr_model = joblib.load("checkpoints/lr_model.pkl")
+        tree_model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "tree_model.pkl"))
+        lr_model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "lr_model.pkl"))
 
         # Predict tree & lr outputs
         X_torch = torch.from_numpy(X_std.astype(np.float32))
@@ -95,11 +95,11 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
 
         # Load and predict with MLP
-        with open("checkpoints/mlp_input_dim.txt") as f:
+        with open(os.path.join(BASE_DIR, "checkpoints", "mlp_input_dim.txt")) as f:
             input_dim = int(f.read().strip())
 
         model = TinyMLP(input_dim=input_dim)
-        state_dict = torch.load("checkpoints/best_model.pth", map_location=torch.device("cpu"))
+        state_dict = torch.load(os.path.join(BASE_DIR, "checkpoints", "best_model.pth"), map_location=torch.device("cpu"))
         model.load_state_dict(state_dict)
         model.eval() 
 
@@ -114,12 +114,12 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
 
     elif model_name == "tree":
-        model = joblib.load("checkpoints/tree_model.pkl")
+        model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "tree_model.pkl"))
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
 
     elif model_name == "lr":
-        model = joblib.load("checkpoints/lr_model.pkl")
+        model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "lr_model.pkl"))
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
 
@@ -134,7 +134,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
     
     # Load bias (optional)
-    bias_path = os.path.join("checkpoints", f"{model_name}_bias.txt")
+    bias_path = os.path.join(BASE_DIR, "checkpoints", f"{model_name}_bias.txt")
     if os.path.exists(bias_path):
         with open(bias_path) as f:
             bias = float(f.read().strip())

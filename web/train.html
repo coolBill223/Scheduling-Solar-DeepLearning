@@ -27,10 +27,10 @@
       <!-- Upload & Train Section -->
       <div class="scheduleForm" style="text-align: center;">
         <input type="file" id="fileInput" accept=".xlsx" /><br /><br />
-        <button id="uploadBtn">Upload File</button>
+        <button id="uploadBtn" type = "button">Upload File</button>
         <p id="uploadStatus"></p>
 
-        <button id="trainBtn" style="display: none;">Start Training</button>
+        <button id="trainBtn" type = "button" style="display: none;">Start Training</button>
         <p id="trainStatus" style="display: none; color: green; font-weight: bold;"></p>
 
       </div>
@@ -47,25 +47,26 @@
       const resultArea = document.getElementById("resultArea");
 
       // Upload Excel file
-      uploadBtn.addEventListener("click", async () => {
+      uploadBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
         const fileInput = document.getElementById("fileInput");
         const uploadStatus = document.getElementById("uploadStatus");
         const file = fileInput.files[0];
-
+      
         if (!file) {
           uploadStatus.textContent = "Please select a file.";
           return;
         }
-
+      
         const formData = new FormData();
         formData.append("file", file);
-
+      
         uploadStatus.textContent = "Uploading...";
         const response = await fetch("/upload", {
           method: "POST",
           body: formData,
         });
-
+      
         if (response.ok) {
           uploadStatus.textContent = "File uploaded successfully.";
           trainBtn.style.display = "inline-block";
@@ -76,10 +77,12 @@
       });
 
       // Start training
-      trainBtn.addEventListener("click", async () => {
+      trainBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
         const trainStatus = document.getElementById("trainStatus");
         const resultArea = document.getElementById("resultArea");
       
+        trainStatus.style.display = "block";
         trainStatus.textContent = "Training in progress...";
         resultArea.innerHTML = "";
       
@@ -88,14 +91,11 @@
           if (!response.ok) throw new Error(await response.text());
       
           trainStatus.textContent = "Training complete. Displaying results...";
-      
-          const resultHtml = await fetch("/train_result_page");
-          const text = await resultHtml.text();
-          resultArea.innerHTML = text;
+          window.location.href = "/train_result_page";
         } catch (err) {
-          trainStatus.innerHTML = `❌ Training failed: <br>${err}`;
+          trainStatus.innerHTML = ` Training failed: <br>${err}`;
         }
-      });
+      });      
             window.addEventListener("DOMContentLoaded", async () => {
               try {
                 const response = await fetch("/train_result_page");

@@ -1,7 +1,9 @@
 import sys
 import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CHECKPOINT_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "checkpoints"))
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 
 import numpy as np
 import torch
@@ -15,9 +17,6 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-base_dir = os.getcwd()
-checkpoint_dir = os.path.join(base_dir, "checkpoints")
 
 def evaluate_regression_metrics(y_true, y_pred):
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
@@ -72,7 +71,7 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
     print(f"[{name} Metrics] R2: {r2:.4f}")
 
     # Save metrics
-    with open(os.path.join(checkpoint_dir, f"metrics_{name}.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, f"metrics_{name}.txt"), "w") as f:
         f.write(f"RMSE: {rmse:.2f} mins\n")
         f.write(f"MAE: {mae:.2f} mins\n")
         f.write(f"R2: {r2:.4f}\n")
@@ -84,14 +83,14 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
     print(f"[{name} Bias] Bias = {bias:.2f} minutes")
 
     # Save bias
-    with open(os.path.join(checkpoint_dir, f"{name}_bias.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, f"{name}_bias.txt"), "w") as f:
         f.write(str(bias))
 
     # Save plot
     plot_predictions(preds_biased, y_true, name)
 
     # Confirm path
-    img_path = os.path.join(checkpoint_dir, f"pred_vs_actual_{name}.png")
+    img_path = os.path.join(CHECKPOINT_DIR, f"pred_vs_actual_{name}.png")
     if os.path.exists(img_path):
         print(f"[{name}] Prediction plot saved at {img_path}")
     else:
@@ -104,19 +103,21 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
     
 def train_stacked_model():
     # Load data
-    checkpoint_dir = "checkpoints"
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    X_train, X_val, y_train, y_val, y_scaler, X_scaler = load_data("data/raw_data/Data.xlsx")
+    
+    
+    excel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "raw_data", "Data.xlsx")
+    excel_path = os.path.normpath(excel_path)
+    X_train, X_val, y_train, y_val, y_scaler, X_scaler = load_data(excel_path)
 
-    checkpoint_dir = "checkpoints"
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    joblib.dump(X_scaler, os.path.join(checkpoint_dir, "X_scaler.pkl"))
-    joblib.dump(y_scaler, os.path.join(checkpoint_dir, "y_scaler.pkl"))
+    
+    
+    joblib.dump(X_scaler, os.path.join(CHECKPOINT_DIR, "X_scaler.pkl"))
+    joblib.dump(y_scaler, os.path.join(CHECKPOINT_DIR, "y_scaler.pkl"))
     
     # Train Tree
     tree = SklearnTreeWrapper()
     tree.fit(X_train, y_train)
-    joblib.dump(tree, os.path.join(checkpoint_dir, "tree_model.pkl")) 
+    joblib.dump(tree, os.path.join(CHECKPOINT_DIR, "tree_model.pkl")) 
     tree_train_pred = tree.predict(X_train).reshape(-1, 1)
     tree_val_pred = tree.predict(X_val).reshape(-1, 1)
 
@@ -124,7 +125,7 @@ def train_stacked_model():
     # Train LR
     lr = SklearnLRWrapper()
     lr.fit(X_train, y_train)
-    joblib.dump(lr, os.path.join(checkpoint_dir, "lr_model.pkl"))
+    joblib.dump(lr, os.path.join(CHECKPOINT_DIR, "lr_model.pkl"))
     lr_train_pred = lr.predict(X_train).reshape(-1, 1)
     lr_val_pred = lr.predict(X_val).reshape(-1, 1)
 
@@ -170,7 +171,7 @@ def train_stacked_model():
         if val_loss < best_loss:
             best_loss = val_loss
             wait = 0
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, "best_model.pth"))
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_DIR, "best_model.pth"))
         else:
             wait += 1
             if wait >= patience:
@@ -178,7 +179,7 @@ def train_stacked_model():
                 break
 
     # Evaluation
-    model.load_state_dict(torch.load(os.path.join(checkpoint_dir, "best_model.pth")))
+    model.load_state_dict(torch.load(os.path.join(CHECKPOINT_DIR, "best_model.pth")))
     with torch.no_grad():
         pred_vals = model(X_val_tensor)
 
@@ -195,12 +196,12 @@ def train_stacked_model():
     print(f"[MLP Metrics] R2: {r2:.4f}")
 
     
-    with open(os.path.join(checkpoint_dir, "metrics_mlp.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, "metrics_mlp.txt"), "w") as f:
         f.write(f"RMSE: {rmse:.2f} mins\n")
         f.write(f"MAE: {mae:.2f} mins\n")
         f.write(f"R2: {r2:.4f}\n")
 
-    with open(os.path.join(checkpoint_dir, "metrics.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, "metrics.txt"), "w") as f:
         f.write(f"RMSE: {rmse:.2f} mins\n")
         f.write(f"MAE: {mae:.2f} mins\n")
         f.write(f"R2: {r2:.4f}\n")
@@ -216,16 +217,20 @@ def train_stacked_model():
     print(f"[MLP Metrics with Bias] R2: {r2_biased:.4f}")
 
     
-    with open(os.path.join(checkpoint_dir, "mlp_bias.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, "mlp_bias.txt"), "w") as f:
         f.write(str(bias))
 
     
-    plot_predictions(preds_biased, y_true, name="mlp", out_dir=checkpoint_dir)
+    plot_predictions(preds_biased, y_true, name="mlp", out_dir=CHECKPOINT_DIR)
     
     import shutil
-    shutil.copyfile("checkpoints/pred_vs_actual_mlp.png", "checkpoints/pred_vs_actual.png")
+    shutil.copyfile(
+        os.path.join(CHECKPOINT_DIR, "pred_vs_actual_mlp.png"),
+        os.path.join(CHECKPOINT_DIR, "pred_vs_actual.png")
+    )
+
     
-    with open(os.path.join(checkpoint_dir, "mlp_input_dim.txt"), "w") as f:
+    with open(os.path.join(CHECKPOINT_DIR, "mlp_input_dim.txt"), "w") as f:
         f.write(str(X_train_stacked.shape[1]))
 
     # Generate prediction plots and metrics for Tree and LR
