@@ -7,6 +7,7 @@ import sys
 import os
 import random
 import json
+import math
 BASE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 torch.manual_seed(42)
@@ -57,7 +58,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     print("[DEBUG] feature_vector =", feature_vector)
 
     X_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "X_scaler.pkl")) 
-
+    y_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "y_scaler.pkl")) 
     import json
     print("Scaler expects:", X_scaler.n_features_in_)          # 24
     print("Feature names :", X_scaler.feature_names_in_)
@@ -71,13 +72,48 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     
     incoming = np.array(feature_vector).reshape(1, -1)
     print("You provided :", incoming.shape[1])
+
+    if model_name == "ga":
+        print("Enter model")
+        weights = np.loadtxt(os.path.join(BASE_DIR, "checkpoints", "best_weights_ga.csv"), delimiter=',', skiprows=1, usecols=1)
+        
+
+        print("incoming shape after pad:", incoming.shape)
+        incoming = np.hstack([incoming, np.ones((incoming.shape[0], 1))]) 
+        print("incoming shape after bias:", incoming.shape)
+        X_bias = incoming
+        X_expand = np.hstack([
+            X_bias,
+            X_bias ** 2,
+            np.log1p(np.abs(X_bias)),
+            np.sqrt(np.abs(X_bias))
+        ])
+        print("Part1 down")
+        print("X_expand shape:", X_expand.shape)
+        print("incoming shape after pad:", incoming.shape)
+
+        y_pred = X_expand @ weights.reshape(-1, 1)
+        print("Part2 down")
+
+        bias_path = os.path.join(BASE_DIR, "checkpoints", "ga_bias.txt")
+        bias = 0
+        if os.path.exists(bias_path):
+            with open(bias_path) as f:
+                bias = float(f.read().strip())
+            y_pred += bias
+        y_pred_true = float(y_pred.flatten()[0])     
+        y_pred_true = math.sqrt(abs(y_pred_true))
+        
+        print(f"[GA] Prediction minutes (after inverse transform): {y_pred_true}")
+
+        
+        return y_pred_true
     
-    # Convert input to NumPy array
     X_raw = np.array(feature_vector).reshape(1, -1)
     X_std = X_scaler.transform(incoming)
     # Load scaler to inverse prediction
     y_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "y_scaler.pkl"))
-
+    
     if model_name == "mlp":
         # Load stacking base models
         tree_model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "tree_model.pkl"))
@@ -122,23 +158,6 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "lr_model.pkl"))
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
-
-    elif model_name == "ga":
-        scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "ga_scaler.pkl"))
-        weights = np.loadtxt(os.path.join(BASE_DIR, "checkpoints", "best_weights_ga.csv"), delimiter=',', skiprows=1, usecols=1)
-        
-        incoming = np.array(feature_vector).reshape(1, -1)
-        X_std = scaler.transform(incoming)
-
-        y_pred = X_std @ weights.reshape(-1, 1)
-
-        bias_path = os.path.join(BASE_DIR, "checkpoints", "ga_bias.txt")
-        if os.path.exists(bias_path):
-            with open(bias_path) as f:
-                bias = float(f.read().strip())
-                y_pred += bias
-
-        return float(np.clip(y_pred.flatten()[0], 0, None))
 
     
     else:

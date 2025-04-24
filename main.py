@@ -100,7 +100,14 @@ def pred_img_tree():
 def pred_img_lr():
     img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_lr.png")
     return send_file(img_path, mimetype="image/png")
-    
+
+@app.route("/pred_vs_actual_ga")
+def pred_img_ga():
+    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_ga.png")
+    if not os.path.exists(img_path):
+        return "GA prediction image not found. Please train the GA model first.", 404
+    return send_file(img_path, mimetype="image/png")
+
 
 @app.route("/train_result_page")
 def train_result_page():
@@ -153,6 +160,9 @@ def predict():
             ] 
             features = [float(data.get(k,0)) for k in selected_features]
 
+        print("[DEBUG] Received model:", model_type)
+        print("[DEBUG] Received features:", features)
+        
         prediction = predict_with_model(model_type, features)
         return jsonify({"prediction": prediction})
     except Exception as e:
