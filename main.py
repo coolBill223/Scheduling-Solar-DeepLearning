@@ -1,13 +1,17 @@
 from flask import Flask, request, send_file, render_template, send_from_directory, render_template_string, redirect,jsonify
-import os
 import subprocess
 import importlib
 from werkzeug.utils import secure_filename
-import sys
 import json
+import os
+import sys
 
 BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-    
+USER_DIR = os.path.expanduser('~')
+CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
+
 app = Flask(
     __name__,
     static_folder=os.path.join(BASE_DIR, "web", "static"),
@@ -23,7 +27,7 @@ def index():
 def form_page():
     import json
     try:
-        with open(os.path.join(BASE_DIR, "checkpoints", "category_mappings.json"), encoding="utf-8") as f:
+        with open(os.path.join(CHECKPOINT_DIR, "category_mappings.json"), encoding="utf-8") as f:
             mappings = json.load(f)
     except:
         mappings = {}
@@ -62,30 +66,24 @@ def upload_file():
 
 @app.route("/train")
 def train_model():
-    train_script = os.path.join(BASE_DIR, "exp", "trainNew.py")
-    result = subprocess.run(
-        [sys.executable, train_script],
-        capture_output=True,
-        text=True,
-        check=False
-    )
-
-    if result.returncode == 0:
+    try:
+        from exp.trainNew import train_all_models
+        train_all_models()
         return "Training completed.", 200
-    else:
-        return f"<h3>Training failed.</h3><pre>{result.stderr}</pre>", 500
+    except Exception as e:
+        return f"<h3>Training error:</h3><pre>{str(e)}</pre>", 500
 
 
 @app.route("/loss_curve")
 def loss_curve_img():
     # Serve the loss curve image from checkpoints
-    img_path = os.path.join(BASE_DIR, "checkpoints", "loss_curve.png")
+    img_path = os.path.abspath(CHECKPOINT_DIR,"loss_curve.png")
     return send_file(img_path, mimetype="image/png")
 
 @app.route("/pred_vs_actual")
 def pred_img():
     # Serve the prediction vs actual plot from checkpoints
-    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual.png")
+    img_path = os.path.join(CHECKPOINT_DIR, "pred_vs_actual.png")
     if not os.path.exists(img_path):
         return "Prediction image not found. Please train the model first.", 404
     return send_file(img_path, mimetype="image/png")
@@ -93,17 +91,17 @@ def pred_img():
 
 @app.route("/pred_vs_actual_tree")
 def pred_img_tree():
-    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_tree.png")
+    img_path = os.path.join(CHECKPOINT_DIR, "pred_vs_actual_tree.png")
     return send_file(img_path, mimetype="image/png")
 
 @app.route("/pred_vs_actual_lr")
 def pred_img_lr():
-    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_lr.png")
+    img_path = os.path.join(CHECKPOINT_DIR, "pred_vs_actual_lr.png")
     return send_file(img_path, mimetype="image/png")
 
 @app.route("/pred_vs_actual_ga")
 def pred_img_ga():
-    img_path = os.path.join(BASE_DIR, "checkpoints", "pred_vs_actual_ga.png")
+    img_path = os.path.join(CHECKPOINT_DIR, "pred_vs_actual_ga.png")
     if not os.path.exists(img_path):
         return "GA prediction image not found. Please train the GA model first.", 404
     return send_file(img_path, mimetype="image/png")
@@ -112,7 +110,7 @@ def pred_img_ga():
 @app.route("/train_result_page")
 def train_result_page():
     def render_metrics(name, pretty_name):
-        metrics_path = os.path.join(BASE_DIR, f"checkpoints/metrics_{name}.txt") if name != "mlp" else os.path.join(BASE_DIR, "checkpoints", "metrics.txt")
+        metrics_path = os.path.join(CHECKPOINT_DIR, f"metrics_{name}.txt") if name != "mlp" else os.path.join(CHECKPOINT_DIR, "metrics_mlp.txt")
         image_path = f"/pred_vs_actual_{name}" if name != "mlp" else "/pred_vs_actual"
 
         try:
@@ -139,7 +137,7 @@ def train_result_page():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    mapping_path = os.path.join(BASE_DIR, "checkpoints", "category_mappings.json")
+    mapping_path = os.path.join(CHECKPOINT_DIR, "category_mappings.json")
     if not os.path.exists(mapping_path):
         return jsonify({"error": "Model not trained yet. Please train first."}), 400
     

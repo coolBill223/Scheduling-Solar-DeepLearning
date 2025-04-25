@@ -1,8 +1,11 @@
-import sys
 import os
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CHECKPOINT_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "checkpoints"))
+import sys
+
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+USER_DIR = os.path.expanduser('~')
+CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import numpy as np
@@ -88,7 +91,7 @@ def train_sklearn_model(model_cls, X_train, y_train, X_val, y_val, y_scaler, nam
         f.write(str(bias))
 
     # Save plot
-    plot_predictions(preds_biased, y_true, name)
+    plot_predictions(preds_biased, y_true, name, out_dir=CHECKPOINT_DIR)
 
     # Confirm path
     img_path = os.path.join(CHECKPOINT_DIR, f"pred_vs_actual_{name}.png")
@@ -106,7 +109,9 @@ def train_stacked_model():
     # Load data
     
     
-    excel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "raw_data", "Data.xlsx")
+    import sys
+    BASE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    excel_path = os.path.join(BASE_DIR, "data", "raw_data", "Data.xlsx")
     excel_path = os.path.normpath(excel_path)
     X_train, X_val, y_train, y_val, y_scaler, X_scaler = load_data(excel_path)
 
@@ -241,6 +246,8 @@ def train_stacked_model():
     print("Training complete.")
 
 def train_all_models():
+    print("[DEBUG] >>> trainNew.py is running!")
+
     train_stacked_model() 
     print("[GA] Training started")
     train_ga_model(output_dir=CHECKPOINT_DIR)

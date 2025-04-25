@@ -91,7 +91,9 @@
           if (!response.ok) throw new Error(await response.text());
       
           trainStatus.textContent = "Training complete. Displaying results...";
-          window.location.href = "/train_result_page";
+          const pageContent = await fetch("/train_result_page");
+          const html = await pageContent.text();
+          resultArea.innerHTML = html;
         } catch (err) {
           trainStatus.innerHTML = ` Training failed: <br>${err}`;
         }

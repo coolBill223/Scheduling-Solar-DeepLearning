@@ -1,27 +1,14 @@
 import threading
-import webview
+import webbrowser
+import os
 from main import app
 
-# Function to run Flask in background
 def run_flask():
     app.run(debug=False, port=5000)
 
 if __name__ == "__main__":
-    # Start Flask server in background thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-
-    print("Flask server started at http://127.0.0.1:5000")
-
-    # Create a native window via pywebview
-    webview.create_window(
-        title="Solar Installation Time Predictor",
-        url="http://127.0.0.1:5000",
-        width=1280,
-        height=800,
-        resizable=True
-    )
-
-    # Start the GUI event loop
-    webview.start()
+    threading.Thread(target=run_flask, daemon=True).start()
+    if not os.environ.get("FLASK_STARTED"):
+        os.environ["FLASK_STARTED"] = "1"
+        webbrowser.open("http://127.0.0.1:5000")
+    input("Press ENTER to stop the server...\n")

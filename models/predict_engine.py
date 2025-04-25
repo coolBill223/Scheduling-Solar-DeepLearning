@@ -17,7 +17,11 @@ torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-with open(os.path.join(BASE_DIR, "checkpoints", "category_mappings.json")) as f:
+USER_DIR = os.path.expanduser('~')
+CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
+with open(os.path.join(CHECKPOINT_DIR, "category_mappings.json")) as f:
     category_mappings = json.load(f)
 
 def map_category_value(col_name, val):
@@ -57,8 +61,8 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     print("[DEBUG] Running updated predict_engine with stacking")
     print("[DEBUG] feature_vector =", feature_vector)
 
-    X_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "X_scaler.pkl")) 
-    y_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "y_scaler.pkl")) 
+    X_scaler = joblib.load(os.path.join(CHECKPOINT_DIR, "X_scaler.pkl")) 
+    y_scaler = joblib.load(os.path.join(CHECKPOINT_DIR, "y_scaler.pkl")) 
     import json
     print("Scaler expects:", X_scaler.n_features_in_)          # 24
     print("Feature names :", X_scaler.feature_names_in_)
@@ -75,7 +79,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
     if model_name == "ga":
         print("Enter model")
-        weights = np.loadtxt(os.path.join(BASE_DIR, "checkpoints", "best_weights_ga.csv"), delimiter=',', skiprows=1, usecols=1)
+        weights = np.loadtxt(os.path.join(CHECKPOINT_DIR, "best_weights_ga.csv"), delimiter=',', skiprows=1, usecols=1)
         
 
         print("incoming shape after pad:", incoming.shape)
@@ -95,7 +99,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
         y_pred = X_expand @ weights.reshape(-1, 1)
         print("Part2 down")
 
-        bias_path = os.path.join(BASE_DIR, "checkpoints", "ga_bias.txt")
+        bias_path = os.path.join(CHECKPOINT_DIR, "ga_bias.txt")
         bias = 0
         if os.path.exists(bias_path):
             with open(bias_path) as f:
@@ -112,12 +116,12 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
     X_raw = np.array(feature_vector).reshape(1, -1)
     X_std = X_scaler.transform(incoming)
     # Load scaler to inverse prediction
-    y_scaler = joblib.load(os.path.join(BASE_DIR, "checkpoints", "y_scaler.pkl"))
+    y_scaler = joblib.load(os.path.join(CHECKPOINT_DIR, "y_scaler.pkl"))
     
     if model_name == "mlp":
         # Load stacking base models
-        tree_model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "tree_model.pkl"))
-        lr_model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "lr_model.pkl"))
+        tree_model = joblib.load(os.path.join(CHECKPOINT_DIR, "tree_model.pkl"))
+        lr_model = joblib.load(os.path.join(CHECKPOINT_DIR, "lr_model.pkl"))
 
         # Predict tree & lr outputs
         X_torch = torch.from_numpy(X_std.astype(np.float32))
@@ -131,11 +135,11 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
 
         # Load and predict with MLP
-        with open(os.path.join(BASE_DIR, "checkpoints", "mlp_input_dim.txt")) as f:
+        with open(os.path.join(CHECKPOINT_DIR, "mlp_input_dim.txt")) as f:
             input_dim = int(f.read().strip())
 
         model = TinyMLP(input_dim=input_dim)
-        state_dict = torch.load(os.path.join(BASE_DIR, "checkpoints", "best_model.pth"), map_location=torch.device("cpu"))
+        state_dict = torch.load(os.path.join(CHECKPOINT_DIR, "best_model.pth"), map_location=torch.device("cpu"))
         model.load_state_dict(state_dict)
         model.eval() 
 
@@ -150,12 +154,12 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
 
     elif model_name == "tree":
-        model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "tree_model.pkl"))
+        model = joblib.load(os.path.join(CHECKPOINT_DIR, "tree_model.pkl"))
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
 
     elif model_name == "lr":
-        model = joblib.load(os.path.join(BASE_DIR, "checkpoints", "lr_model.pkl"))
+        model = joblib.load(os.path.join(CHECKPOINT_DIR, "lr_model.pkl"))
         X_tensor = torch.from_numpy(X_std.astype(np.float32))
         y_pred = model.predict(X_tensor)
 
@@ -171,7 +175,7 @@ def predict_with_model(model_name: str, feature_vector: list) -> float:
 
     
     # Load bias (optional)
-    bias_path = os.path.join(BASE_DIR, "checkpoints", f"{model_name}_bias.txt")
+    bias_path = os.path.join(CHECKPOINT_DIR, f"{model_name}_bias.txt")
     if os.path.exists(bias_path):
         with open(bias_path) as f:
             bias = float(f.read().strip())

@@ -18,8 +18,10 @@ def generate_nonlinear_features(X):
     X_log = np.log1p(np.abs(X))
     X_sqrt = np.sqrt(np.abs(X))
     return np.hstack([X, X_squared, X_log, X_sqrt])
-
-def train_ga_model(output_dir="checkpoints"):
+USER_DIR = os.path.expanduser('~')
+CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+def train_ga_model(output_dir=CHECKPOINT_DIR):
     for f in ["ga_scaler.pkl", "ga_bias.txt", "best_weights_ga.csv", "metrics_ga.txt", "pred_vs_actual_ga.png"]:
         path = os.path.join(output_dir, f)
         if os.path.exists(path):
@@ -49,7 +51,7 @@ def train_ga_model(output_dir="checkpoints"):
     best_weights, best_fitness_per_gen = genetic_algorithm(
         X_train_scaled, y_train,
         population_size=200,
-        generations=250000,
+        generations=2500,
         elite_size=2,
         save_path=os.path.join(output_dir, "best_weights_ga.csv")
     )

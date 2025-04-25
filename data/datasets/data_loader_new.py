@@ -6,6 +6,11 @@ import re
 import datetime
 from sklearn.preprocessing import StandardScaler
 import json
+import sys
+USER_DIR = os.path.expanduser('~')
+CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
 # ----------------------------------------------------------
 # Utility Functions
 # ----------------------------------------------------------
@@ -195,7 +200,7 @@ def load_data(file_path=None):
         "Target (mins, after Drive)": np.exp(df[target]),  # reverse sqrt
         "Target (after sqrt)": df[target]
     })
-    debug_df.to_excel("checkpoints/target_debug_output.xlsx", index=False)
+    debug_df.to_excel(os.path.join(CHECKPOINT_DIR, "target_debug_output.xlsx"), index=False)
     print(" Full target transformation output saved to checkpoints/target_debug_output.xlsx")
 
     
@@ -254,7 +259,7 @@ def load_data(file_path=None):
         X_tensor, y_tensor, test_size=0.2, random_state=42
     )
 
-    with open("checkpoints/category_mappings.json", "w", encoding="utf-8") as f:
+    with open(os.path.join(CHECKPOINT_DIR, "category_mappings.json"), "w", encoding="utf-8") as f:
         json.dump(category_mappings, f, ensure_ascii=False, indent=2)
 
     return X_train, X_val, y_train, y_val, y_scaler, X_scaler
