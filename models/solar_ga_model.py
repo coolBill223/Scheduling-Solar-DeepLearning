@@ -51,7 +51,7 @@ def train_ga_model(output_dir=CHECKPOINT_DIR):
     best_weights, best_fitness_per_gen = genetic_algorithm(
         X_train_scaled, y_train,
         population_size=200,
-        generations=2500,
+        generations=100000,
         elite_size=2,
         save_path=os.path.join(output_dir, "best_weights_ga.csv")
     )
