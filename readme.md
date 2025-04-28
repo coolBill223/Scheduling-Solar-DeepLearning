@@ -32,6 +32,7 @@ Visit: https://127.0.0.1:5000
 - The Excel file must include a target column, such as Install Time (min)
 - Training outputs are saved in the checkpoints/ directory
 - You can modify the model architecture in models/solar_time_model_tiny.py
+- If you want to download the full code and try, please visit the website: https://github.com/coolBill223/Scheduling-Solar-DeepLearning.git
 
 
 ## Author
