@@ -41,10 +41,3 @@ School of Engineering and Applied Science
 
 
 
-
-## 作者
-作者：周知睿. 
-弗吉尼亚大学. 
-工程与应用科学学院
-
-
