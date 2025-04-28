@@ -10,7 +10,13 @@ import sys
 USER_DIR = os.path.expanduser('~')
 CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+import sys
+import os
 
+
+internal_dir = os.path.join(os.path.dirname(sys.executable), "_internal")
+if internal_dir not in sys.path:
+    sys.path.insert(0, internal_dir)
 # ----------------------------------------------------------
 # Utility Functions
 # ----------------------------------------------------------

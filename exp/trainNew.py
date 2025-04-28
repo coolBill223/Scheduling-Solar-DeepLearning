@@ -21,6 +21,8 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib
+matplotlib.use('Agg')
 
 def evaluate_regression_metrics(y_true, y_pred):
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))

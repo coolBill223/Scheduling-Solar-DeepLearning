@@ -5,7 +5,10 @@ from werkzeug.utils import secure_filename
 import json
 import os
 import sys
-
+internal_dir = os.path.join(os.path.dirname(sys.executable), "_internal")
+if internal_dir not in sys.path:
+    sys.path.insert(0, internal_dir)
+    
 BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 USER_DIR = os.path.expanduser('~')
 CHECKPOINT_DIR = os.path.join(USER_DIR, ".my_software_checkpoints")
